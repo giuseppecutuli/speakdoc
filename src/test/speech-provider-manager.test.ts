@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { SpeechProviderManager } from '@/features/voice-input/SpeechProviderManager';
+import type { SpeechCallbacks } from '@/features/voice-input/SpeechProviderManager';
 import type { ISpeechProvider, SpeechProviderName } from '@/features/voice-input/types/speech-provider';
 import type { LanguageCode } from '@/types/language';
-import type { TranscriptionResult } from '@/types/voice';
 
 const makeProvider = (
   name: SpeechProviderName,
@@ -12,31 +12,36 @@ const makeProvider = (
   startMock: ReturnType<typeof vi.fn>;
   stopMock: ReturnType<typeof vi.fn>;
   abortMock: ReturnType<typeof vi.fn>;
-} => ({
-  name,
-  isAvailable: vi.fn(() => available),
-  isConfigured: vi.fn(() => configured),
+} => {
+  const startMock = vi.fn();
+  const stopMock = vi.fn();
+  const abortMock = vi.fn();
+  return {
+    name,
+    isAvailable: vi.fn(() => available),
+    isConfigured: vi.fn(() => configured),
+    onResult: vi.fn(),
+    onError: vi.fn(),
+    onEnd: vi.fn(),
+    startMock,
+    stopMock,
+    abortMock,
+    start(language: LanguageCode) {
+      startMock(language);
+    },
+    stop() {
+      stopMock();
+    },
+    abort() {
+      abortMock();
+    },
+  };
+};
+
+const noopCallbacks: SpeechCallbacks = {
   onResult: vi.fn(),
   onError: vi.fn(),
   onEnd: vi.fn(),
-  startMock: vi.fn(),
-  stopMock: vi.fn(),
-  abortMock: vi.fn(),
-  start(language: LanguageCode) {
-    this.startMock(language);
-  },
-  stop() {
-    this.stopMock();
-  },
-  abort() {
-    this.abortMock();
-  },
-});
-
-const noopCallbacks = {
-  onResult: vi.fn<[TranscriptionResult], void>(),
-  onError: vi.fn<[string], void>(),
-  onEnd: vi.fn<[], void>(),
 };
 
 describe('SpeechProviderManager', () => {
@@ -91,10 +96,10 @@ describe('SpeechProviderManager', () => {
     it('registers callbacks and calls start on selected provider', () => {
       const provider = makeProvider('web-speech');
       const manager = new SpeechProviderManager([provider]);
-      const callbacks = {
-        onResult: vi.fn<[TranscriptionResult], void>(),
-        onError: vi.fn<[string], void>(),
-        onEnd: vi.fn<[], void>(),
+      const callbacks: SpeechCallbacks = {
+        onResult: vi.fn(),
+        onError: vi.fn(),
+        onEnd: vi.fn(),
       };
 
       manager.start('it', callbacks);

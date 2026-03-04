@@ -10,7 +10,9 @@ Fully client-side single-page application. No backend. All processing in the bro
 ```
 Browser (Chrome 123+)
 ├── React 18 + TypeScript + Vite
-├── Audio Layer: Web Speech API + MediaRecorder API
+├── Speech Layer: ISpeechProvider (pluggable)
+│   ├── WebSpeechProvider  → Web Speech API (default)
+│   └── WhisperProvider    → whisper.cpp via WebAssembly (offline, high accuracy)
 ├── AI Layer: window.ai (Gemini Nano) → OpenAI-compatible API (fallback)
 ├── State: Zustand stores
 ├── Persistence: Dexie.js (IndexedDB) + localStorage
@@ -240,6 +242,120 @@ recognition.onresult = (event) => { /* update transcription store */ };
 
 ---
 
+## Speech Provider Layer — Pluggable Architecture
+
+The voice-input feature uses a **pluggable provider abstraction** to support multiple speech-to-text backends. Switching between Web Speech API and whisper.cpp (WASM) requires no changes to component code.
+
+### Provider Interface
+
+```typescript
+// src/features/voice-input/types/speech-provider.ts
+export interface ISpeechProvider {
+  name: 'web-speech' | 'whisper' | string;
+  isAvailable(): Promise<boolean>;        // Feature detection
+  isConfigured(): Promise<boolean>;       // Config / model loaded
+  start(language: LanguageCode): void;    // Begin listening
+  stop(): void;                           // Stop (graceful)
+  abort(): void;                          // Abort immediately
+  onResult(callback: (result: TranscriptionResult) => void): void;
+  onError(callback: (error: string) => void): void;
+  onEnd(callback: () => void): void;
+}
+```
+
+### Built-in Providers
+
+#### WebSpeechProvider
+- **Status**: Active (default)
+- **Availability**: All modern browsers
+- **Accuracy**: ~70–90% (browser-dependent)
+- **Latency**: Real-time interim results
+- **Config**: None required
+- **Path**: `src/features/voice-input/providers/WebSpeechProvider.ts`
+
+#### WhisperProvider (via WebAssembly)
+- **Status**: Phase 1b — post-MVP optional feature
+- **Technology**: whisper.cpp compiled to WASM, runs 100% in the browser — no server needed
+- **Library**: `@xenova/transformers` (battle-tested WASM wrapper for Whisper models)
+- **Availability**: Any browser with WebAssembly support (Chrome, Firefox, Edge, Safari)
+- **Accuracy**: ~95–99% (state-of-the-art)
+- **Latency**: ~5–30 sec per recording (CPU-bound, device-dependent)
+- **Config**: Model download on first use — tiny (~45 MB), base (~75 MB), small (~150 MB)
+- **Caching**: Model cached in IndexedDB via Dexie after first download
+- **Path**: `src/features/voice-input/providers/WhisperProvider.ts`
+
+> **Why WASM?** whisper.cpp can be compiled to WebAssembly, allowing it to run directly in the browser tab with no backend. `@xenova/transformers` provides a ready-to-use JS/WASM bundle with quantized Whisper models.
+
+### Provider Selection Logic
+
+```typescript
+// src/features/voice-input/SpeechProviderManager.ts
+class SpeechProviderManager {
+  async selectBestProvider(language: LanguageCode): Promise<ISpeechProvider> {
+    // 1. Honour explicit user preference from Settings
+    if (userSettings.speechProvider === 'whisper') {
+      if (await whisperProvider.isAvailable()) return whisperProvider;
+      throw new Error('Whisper unavailable (WebAssembly not supported)');
+    }
+
+    // 2. Auto: pick best available
+    if (await whisperProvider.isAvailable()) return whisperProvider;
+    if (await webSpeechProvider.isAvailable()) return webSpeechProvider;
+
+    throw new Error('No speech provider available');
+  }
+}
+```
+
+### Language Code Mapping
+
+```typescript
+// src/utils/language-utils.ts
+export function getLanguageCodeForProvider(
+  language: LanguageCode,
+  provider: ISpeechProvider
+): string {
+  if (provider.name === 'web-speech') return LANGUAGE_SPEECH_CODES[language]; // 'it-IT'
+  if (provider.name === 'whisper')    return WHISPER_LANGUAGE_CODES[language]; // 'it'
+  return language;
+}
+```
+
+### Settings Integration
+
+```typescript
+// Additions to settings store
+export interface SpeechSettings {
+  speechProvider: 'web-speech' | 'whisper' | 'auto'; // 'auto' = best available
+  whisperModelSize: 'tiny' | 'base' | 'small';
+}
+```
+
+UI additions: provider dropdown, active-provider badge, model-download progress bar on first Whisper use.
+
+### Updated Data Flow
+
+```
+User selects language
+    ↓
+SpeechProviderManager.selectBestProvider()
+    ├─ Check user preference
+    ├─ Check WebAssembly availability (Whisper)
+    └─ Fall back to Web Speech API
+    ↓
+provider.start(language)
+    ↓
+provider.onResult() → TranscriptionResult callbacks
+    ├─ interim → update UI live  (Web Speech only; Whisper emits final only)
+    └─ final   → accumulate transcript
+    ↓
+provider.onEnd() → Recording complete
+    ↓
+[Transcription → AI → Documentation]  (unchanged)
+```
+
+---
+
 ## Storage — Repository Pattern
 
 The storage layer uses the **Repository Pattern** to decouple business logic from the storage backend. This makes switching from IndexedDB (MVP) to Supabase (future) a drop-in replacement.
@@ -406,10 +522,12 @@ npm run build           # Output: doc-assistant/dist/
 
 ## Browser Compatibility
 
-| Browser | Voice Input | Gemini Nano | External API | Notes |
-|---|---|---|---|---|
-| Chrome 123+ | ✓ | ✓ (flag needed) | ✓ | Full support |
-| Chrome < 123 | ✓ | ✗ | ✓ | No built-in AI |
-| Edge (Chromium) | ✓ | ✗ | ✓ | No Gemini Nano |
-| Firefox | ✓ | ✗ | ✓ | Web Speech limited |
-| Safari | ⚠ | ✗ | ✓ | iOS restrictions |
+| Browser | Web Speech | Whisper (WASM) | Gemini Nano | External API | Notes |
+|---|---|---|---|---|---|
+| Chrome 123+ | ✓ | ✓ | ✓ (flag needed) | ✓ | Full support |
+| Chrome < 123 | ✓ | ✓ | ✗ | ✓ | No built-in AI |
+| Edge (Chromium) | ✓ | ✓ | ✗ | ✓ | No Gemini Nano |
+| Firefox | ✓ | ✓ | ✗ | ✓ | Web Speech limited |
+| Safari | ⚠ | ✓ | ✗ | ✓ | iOS restrictions on Web Speech; WASM works |
+
+> **Whisper WASM** works in any browser with WebAssembly support (all modern browsers). First use requires a model download (45–150 MB). Subsequent uses load from IndexedDB cache.

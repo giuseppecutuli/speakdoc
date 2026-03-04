@@ -17,7 +17,7 @@
 - [x] Create `src/` folder structure (features, components, hooks, types, constants, utils)
 - [x] Create `public/data/languages.json` and `public/data/speech-codes.json`
 
-**Agent:** `tdd-enforcer` (scaffold tests first, then setup)
+**Agent:** `frontend-dev` (scaffold tests first, then setup)
 
 ### 1.2 Type Definitions
 - [x] `src/types/language.ts` — `LanguageCode`, `LanguageConfig`, `LanguageSession`
@@ -26,7 +26,7 @@
 - [x] `src/types/ai.ts` — `AIBackend`, `AIConfig`, `GenerationOptions`
 - [x] `src/types/documentation.ts` — `OutputFormat`, `DocumentationOutput`
 
-**Agent:** `tdd-enforcer`
+**Agent:** `frontend-dev`
 
 ### 1.3 Constants + Language Config
 - [x] `src/constants/languages.ts` — Supported languages map (en, it)
@@ -35,7 +35,7 @@
 - [x] `src/utils/language-utils.ts` — Language support detection
 - [x] `src/utils/feature-detection.ts` — Detect Web Speech API availability
 
-**Agent:** `voice-ui-dev`
+**Agent:** `frontend-dev`
 
 ### 1.4 Language Selection Feature
 - [x] `src/features/language-selection/LanguageSelectionModal.tsx` — Modal UI with dropdowns
@@ -46,7 +46,7 @@
 - [x] Language persists to localStorage
 - [x] Lock mechanism tested (cannot change during recording)
 
-**Agent:** `voice-ui-dev` + `tdd-enforcer`
+**Agent:** `frontend-dev`
 
 ### 1.5 Voice Input Feature
 - [x] `src/features/voice-input/recorder.service.ts` — MediaRecorder wrapper
@@ -57,14 +57,14 @@
 - [x] Unit tests: recording states, speech API language codes, error handling
 - [x] Integration test: language selection → recording starts with correct language code
 
-**Agent:** `voice-ui-dev` + `tdd-enforcer`
+**Agent:** `frontend-dev`
 
 ### 1.6 Transcription Display
 - [x] `src/features/transcription/TranscriptionDisplay.tsx` — Real-time text panel
 - [x] `src/features/transcription/transcriber.service.ts` — Buffer interim + final results
 - [x] Unit tests: transcript buffering, language label display
 
-**Agent:** `voice-ui-dev`
+**Agent:** `frontend-dev`
 
 ### Phase 1 Exit Criteria
 - [x] Language modal appears before recording
@@ -73,6 +73,125 @@
 - [x] Voice recording works with waveform
 - [x] Live transcription updates in real-time
 - [x] All tests pass, coverage ≥ 80%
+
+---
+
+## Phase 1a — Speech Provider Abstraction (Week 2, parallel with Phase 2)
+
+_Refactors the existing Web Speech API usage into a pluggable provider pattern. No user-facing changes. Unlocks Phase 1b (Whisper WASM) without blocking Phase 2–5._
+
+### 1a.1 Define ISpeechProvider Interface
+- [ ] `src/features/voice-input/types/speech-provider.ts` — `ISpeechProvider` interface
+- [ ] Fields: `name`, `isAvailable()`, `isConfigured()`, `start()`, `stop()`, `abort()`, `onResult()`, `onError()`, `onEnd()`
+- [ ] Unit tests: interface contract (TypeScript compile-time verification)
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 1a.2 WebSpeechProvider — Adapter
+- [ ] `src/features/voice-input/providers/WebSpeechProvider.ts` — wraps existing `speech-recognition.service.ts`
+- [ ] Implements `ISpeechProvider`; delegates to existing service (no internal refactor)
+- [ ] Unit tests: callback invocation, error propagation
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 1a.3 SpeechProviderManager
+- [ ] `src/features/voice-input/SpeechProviderManager.ts` — orchestrator + fallback chain
+- [ ] `selectBestProvider(language)` → checks user settings → availability → fallback
+- [ ] Accepts provider array in constructor (dependency injection for testing)
+- [ ] Unit tests: user-preference selection, fallback chain, no-provider error
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 1a.4 Wire VoiceRecorder to SpeechProviderManager
+- [ ] Update `src/features/voice-input/VoiceRecorder.tsx` to use `SpeechProviderManager` instead of direct service call
+- [ ] All existing Phase 1 tests must still pass (regression check mandatory)
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** MEDIUM (regression)
+
+### 1a.5 Language Code Mapping Utility
+- [ ] Extend `src/utils/language-utils.ts` — `getLanguageCodeForProvider(language, provider)`
+- [ ] Web Speech → BCP 47 (`'it-IT'`); Whisper → ISO 639-1 (`'it'`)
+- [ ] Unit tests: all language codes for both provider types
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### Phase 1a Exit Criteria
+- [ ] `ISpeechProvider` interface defined and exported
+- [ ] `WebSpeechProvider` adapts existing service (no regression)
+- [ ] `SpeechProviderManager` selects provider correctly
+- [ ] `VoiceRecorder` uses manager
+- [ ] Language code mapping covers all language codes
+- [ ] All Phase 1 tests still pass
+- [ ] New tests pass; coverage ≥ 80%
+
+---
+
+## Phase 1b — Whisper WASM Provider (post-MVP, optional)
+
+_Add offline, high-accuracy speech-to-text via whisper.cpp running in the browser as WebAssembly. Requires Phase 1a to be complete. Can be started independently of Phase 2–5._
+
+> **Feasibility**: ✅ Fully feasible. `@xenova/transformers` ships pre-compiled Whisper WASM bundles. No backend or native binary needed — runs entirely in the browser tab.
+
+### 1b.1 Evaluate & Prototype WASM Library
+- [ ] Evaluate `@xenova/transformers` (recommended): bundle size, language support, model formats, maintenance
+- [ ] Prototype: load `Xenova/whisper-tiny` model, transcribe a short audio Blob
+- [ ] Benchmark accuracy vs Web Speech API on Italian and English samples
+- [ ] Document chosen API surface
+
+**Agent:** `ai-integration-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
+
+### 1b.2 WhisperProvider Implementation
+- [ ] `src/features/voice-input/providers/WhisperProvider.ts` — implements `ISpeechProvider`
+- [ ] `isAvailable()` → `typeof WebAssembly !== 'undefined'`
+- [ ] `isConfigured()` → lazy-loads WASM pipeline with progress callback
+- [ ] `start()` → uses `MediaRecorder` to capture audio Blob, then transcribes
+- [ ] Emits `TranscriptionResult` (final only — no interim results from Whisper)
+- [ ] Error handling: network failure, model download timeout, WASM crash
+- [ ] Unit tests: availability detection, model loading (mocked WASM), error states
+
+**Agent:** `ai-integration-dev` | **Complexity:** HIGH | **Risk:** HIGH
+
+### 1b.3 Whisper Model Cache (IndexedDB)
+- [ ] `src/features/voice-input/whisper-model-cache.ts` — cache WASM model binary in IndexedDB
+- [ ] On first use: download → show progress → store in Dexie
+- [ ] Subsequent uses: load from cache (no network request)
+- [ ] Storage quota check; graceful degradation if quota exceeded
+- [ ] Unit tests: save/load, quota handling
+
+**Agent:** `learning-engine-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
+
+### 1b.4 Model Download Progress UI
+- [ ] `src/features/voice-input/WhisperProgressModal.tsx` — shows download % and model size
+- [ ] Displayed on first Whisper use; dismissible (retries on next recording)
+- [ ] Friendly error message if download fails (suggest Web Speech API fallback)
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 1b.5 Settings UI — Provider Selector
+- [ ] Extend `src/components/Settings.tsx`:
+  - Provider dropdown: `Web Speech API` | `Whisper (Offline WASM)` | `Auto (Best Available)`
+  - Whisper sub-options: model size (`tiny` ≈ 45 MB | `base` ≈ 75 MB | `small` ≈ 150 MB)
+- [ ] Persist to localStorage
+- [ ] Show active provider badge in recording UI
+
+**Agent:** `frontend-dev` | **Complexity:** MEDIUM | **Risk:** LOW
+
+### 1b.6 Tests
+- [ ] `src/test/whisper-provider.test.ts` — mocked WASM: load + transcribe + error states
+- [ ] `src/test/whisper-model-cache.test.ts` — IndexedDB cache operations
+- [ ] `src/test/speech-provider-fallback.test.ts` — Whisper unavailable → falls back to Web Speech API
+- [ ] Coverage ≥ 80% for speech module
+
+**Agent:** `frontend-dev` + `ai-integration-dev` | **Complexity:** HIGH | **Risk:** MEDIUM
+
+### Phase 1b Exit Criteria
+- [ ] `WhisperProvider` implements `ISpeechProvider`
+- [ ] Model downloads on first use with visible progress
+- [ ] Model cached in IndexedDB (verify in DevTools → Application → IndexedDB)
+- [ ] Recording works end-to-end with Whisper (manual smoke test)
+- [ ] Fallback: Whisper WASM unavailable → Web Speech API
+- [ ] Settings allow user to switch provider and model size
+- [ ] All tests pass; coverage ≥ 80%
 
 ---
 
@@ -100,7 +219,7 @@
 - [ ] Unit tests with mocked `window.ai` API
 - [ ] Error handling: not available, slow model download, session limit
 
-**Agent:** `ai-integration-dev` + `tdd-enforcer`
+**Agent:** `ai-integration-dev`
 
 ### 2.4 External API Service
 - [ ] `src/features/ai-integration/external-api.service.ts`
@@ -109,7 +228,7 @@
 - [ ] Unit tests with MSW mock server
 - [ ] Error handling: network error, 401, 429, invalid JSON
 
-**Agent:** `ai-integration-dev` + `tdd-enforcer`
+**Agent:** `ai-integration-dev`
 
 ### 2.5 AI Manager (Orchestrator)
 - [ ] `src/features/ai-integration/ai-manager.service.ts`
@@ -119,7 +238,7 @@
 - [ ] `src/hooks/useAISession.ts` — Session lifecycle
 - [ ] Integration tests: fallback chain, error states, streaming updates
 
-**Agent:** `ai-integration-dev` + `tdd-enforcer`
+**Agent:** `ai-integration-dev`
 
 ### Phase 2 Exit Criteria
 - [ ] Gemini Nano detected and used when available
@@ -139,14 +258,14 @@
 - [ ] `src/features/documentation-generation/formatters/html.formatter.ts` — HTML preview
 - [ ] Unit tests: edge cases (empty, special chars, code blocks, nested lists)
 
-**Agent:** `doc-formatter-dev` + `tdd-enforcer`
+**Agent:** `frontend-dev`
 
 ### 3.2 Documentation Generator Service
 - [ ] `src/features/documentation-generation/doc-generator.service.ts`
   - Takes transcription + language pair → calls AI → streams output
 - [ ] `src/hooks/useDocumentation.ts` — Zustand doc store
 
-**Agent:** `doc-formatter-dev` + `ai-integration-dev`
+**Agent:** `frontend-dev` + `ai-integration-dev`
 
 ### 3.3 Documentation Editor UI
 - [ ] `src/features/documentation-generation/DocumentationEditor.tsx`
@@ -158,7 +277,7 @@
 - [ ] Export: `src/features/export/ExportPanel.tsx` + `export.service.ts`
 - [ ] Integration test: transcription → AI → formatted doc → clipboard
 
-**Agent:** `doc-formatter-dev` + `tdd-enforcer`
+**Agent:** `frontend-dev`
 
 ### Phase 3 Exit Criteria
 - [ ] All 3 formats produce correct output
@@ -177,7 +296,7 @@
 - [ ] `src/utils/db.ts` — Singleton DB instance
 - [ ] Unit tests: CRUD operations, schema validation
 
-**Agent:** `learning-engine-dev` + `tdd-enforcer`
+**Agent:** `learning-engine-dev`
 
 ### 4.2 Session Persistence
 - [ ] Auto-save session to IndexedDB after each completed documentation
@@ -195,7 +314,7 @@
   - Simple heuristics-based (no additional AI call needed)
 - [ ] Unit tests: pattern detection, suggestion generation
 
-**Agent:** `learning-engine-dev` + `tdd-enforcer`
+**Agent:** `learning-engine-dev`
 
 ### 4.4 Suggestions UI
 - [ ] `src/features/learning/LearningPanel.tsx` — Shows suggestions, feedback buttons
@@ -227,7 +346,7 @@
 - [ ] `src/components/Navigation.tsx` — Top nav with settings button
 - [ ] `src/components/HelpPanel.tsx` — Quick guide, language support status
 
-**Agent:** `doc-formatter-dev`
+**Agent:** `frontend-dev`
 
 ### 5.2 Settings Refinements
 - [ ] AI backend status indicator (Gemini Nano available / External API configured / None)
@@ -242,14 +361,14 @@
 - [ ] Error state UI (friendly messages, no raw error dumps)
 - [ ] Responsive layout (tablet-friendly, mobile read-only)
 
-**Agent:** `doc-formatter-dev`
+**Agent:** `frontend-dev`
 
 ### 5.4 E2E Tests
 - [ ] `record-and-export.e2e.ts` — Full happy path (Italian → English → copy)
 - [ ] `fallback-api.e2e.ts` — No Gemini Nano → external API
 - [ ] `language-switch.e2e.ts` — Session 1 Italian, Session 2 English
 
-**Agent:** `tdd-enforcer`
+**Agent:** `frontend-dev`
 
 ### 5.5 Accessibility & Performance
 - [ ] Keyboard navigation throughout (Tab, Enter, Escape)
@@ -257,7 +376,7 @@
 - [ ] axe-core accessibility audit
 - [ ] Lighthouse audit (target: 90+)
 
-**Agent:** `doc-formatter-dev`
+**Agent:** `frontend-dev`
 
 ### 5.6 Deploy
 - [ ] `npm run build` passes with 0 errors
@@ -280,10 +399,12 @@
 | Phase | Status | Notes |
 |---|---|---|
 | Phase 1 | ✅ Complete | 49 tests passing, build clean, two-tier prompts (full + compact) |
-| Phase 2 | Not started | |
-| Phase 3 | Not started | |
-| Phase 4 | Not started | |
-| Phase 5 | Not started | |
+| Phase 1a | 🔲 Not started | Speech provider abstraction — can run parallel to Phase 2 |
+| Phase 1b | 🔲 Not started | Whisper WASM — requires Phase 1a, post-MVP optional |
+| Phase 2 | 🔲 Not started | |
+| Phase 3 | 🔲 Not started | |
+| Phase 4 | 🔲 Not started | |
+| Phase 5 | 🔲 Not started | |
 
 ---
 
@@ -291,6 +412,6 @@
 
 | Agent | Phases | Primary Responsibility |
 |---|---|---|
-| `frontend-dev` | 1, 3, 5 | Language selection, voice recording, formatters, UI polish |
-| `ai-integration-dev` | 2, 5 | Gemini Nano, external API, prompt engineering |
-| `learning-engine-dev` | 4 | IndexedDB, Dexie.js, pattern analysis, suggestions |
+| `frontend-dev` | 1, 1a, 1b, 3, 5 | Language selection, voice recording, speech providers, formatters, UI |
+| `ai-integration-dev` | 1b, 2, 5 | Gemini Nano, external API, Whisper WASM, prompt engineering |
+| `learning-engine-dev` | 1b, 4 | IndexedDB, Dexie.js, Whisper model cache, pattern analysis |

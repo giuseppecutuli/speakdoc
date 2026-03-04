@@ -1,5 +1,5 @@
 # Product Requirements Document
-## Doc Assistant — AI-Powered Documentation Tool
+## Speak Doc — AI-Powered Documentation Tool
 
 **Version:** 1.0
 **Status:** Approved

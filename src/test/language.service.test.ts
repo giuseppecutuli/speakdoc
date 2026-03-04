@@ -18,8 +18,8 @@ describe('language.service', () => {
   });
 
   it('ignores invalid stored values and returns defaults', () => {
-    localStorage.setItem('doc-assistant:speaking-lang', 'fr');
-    localStorage.setItem('doc-assistant:output-lang', 'de');
+    localStorage.setItem('speak-doc:speaking-lang', 'fr');
+    localStorage.setItem('speak-doc:output-lang', 'de');
     const prefs = loadLanguagePreferences();
     expect(prefs.speakingLanguage).toBe('it');
     expect(prefs.outputLanguage).toBe('en');

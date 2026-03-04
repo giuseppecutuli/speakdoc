@@ -1,5 +1,5 @@
 # Technical Architecture
-## Doc Assistant — AI-Powered Documentation Tool
+## Speak Doc — AI-Powered Documentation Tool
 
 ---
 

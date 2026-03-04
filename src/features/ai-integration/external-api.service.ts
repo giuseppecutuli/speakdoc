@@ -17,8 +17,10 @@ export const saveAIConfig = (config: Partial<AIConfig>): void => {
 };
 
 export const isExternalAPIConfigured = (): boolean => {
-  const config = loadAIConfig();
-  return config.apiEndpoint.length > 0;
+  // Only considered configured if the user has explicitly saved an endpoint.
+  // Falling back to the default constant does not count as configured.
+  const saved = localStorage.getItem(STORAGE_KEYS.API_ENDPOINT);
+  return saved !== null && saved.length > 0;
 };
 
 export async function* generateWithExternalAPI(

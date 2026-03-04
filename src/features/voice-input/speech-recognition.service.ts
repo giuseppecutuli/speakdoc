@@ -12,8 +12,17 @@ const getSpeechRecognitionConstructor = (): (new () => SpeechRecognition) | null
   return null;
 };
 
+const getBestAlternative = (result: SpeechRecognitionResult): string => {
+  let best = result[0];
+  for (let i = 1; i < result.length; i++) {
+    if (result[i].confidence > best.confidence) best = result[i];
+  }
+  return best.transcript;
+};
+
 export class SpeechRecognitionService {
   private recognition: SpeechRecognition | null = null;
+  private intentionallyStopped = false;
   private onResult: OnResultCallback;
   private onError: OnErrorCallback;
   private onEnd: OnEndCallback;
@@ -35,36 +44,49 @@ export class SpeechRecognitionService {
       return;
     }
 
-    this.recognition = new Ctor();
-    this.recognition.lang = SUPPORTED_LANGUAGES[language].speechCode;
-    this.recognition.continuous = true;
-    this.recognition.interimResults = true;
+    this.intentionallyStopped = false;
+    this._createAndStart(Ctor, language);
+  }
 
-    this.recognition.onresult = (event: SpeechRecognitionEvent) => {
+  private _createAndStart(Ctor: new () => SpeechRecognition, language: LanguageCode): void {
+    const rec = new Ctor();
+    rec.lang = SUPPORTED_LANGUAGES[language].speechCode;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 3;
+
+    rec.onresult = (event: SpeechRecognitionEvent) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
-        const transcript = result[0].transcript;
-        this.onResult({ transcript, isFinal: result.isFinal });
+        this.onResult({ transcript: getBestAlternative(result), isFinal: result.isFinal });
       }
     };
 
-    this.recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    rec.onerror = (event: SpeechRecognitionErrorEvent) => {
       this.onError(event.error);
     };
 
-    this.recognition.onend = () => {
+    rec.onend = () => {
+      if (!this.intentionallyStopped) {
+        // Silence-triggered stop — restart seamlessly to avoid losing words
+        this._createAndStart(Ctor, language);
+        return;
+      }
       this.onEnd();
     };
 
-    this.recognition.start();
+    this.recognition = rec;
+    rec.start();
   }
 
   stop(): void {
+    this.intentionallyStopped = true;
     this.recognition?.stop();
     this.recognition = null;
   }
 
   abort(): void {
+    this.intentionallyStopped = true;
     this.recognition?.abort();
     this.recognition = null;
   }

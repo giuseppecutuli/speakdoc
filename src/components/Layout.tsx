@@ -13,7 +13,7 @@ export const Layout = ({ children }: LayoutProps) => (
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
             <FileText className="h-4 w-4 text-white" />
           </div>
-          <span className="text-base font-semibold text-slate-900">Doc Assistant</span>
+          <span className="text-base font-semibold text-slate-900">Speak Doc</span>
         </div>
         <SettingsPanel />
       </div>

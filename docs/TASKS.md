@@ -198,55 +198,55 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 ## Phase 2 — AI Integration (Week 2-3)
 
 ### 2.1 Settings UI
-- [ ] `src/components/Settings.tsx` — API endpoint, API key, active backend indicator
-- [ ] `src/constants/config.ts` — Default API endpoint, model names
-- [ ] Config persisted to localStorage (never source code)
-- [ ] Unit tests: settings load/save, validation
+- [x] `src/components/Settings.tsx` — API endpoint, API key, active backend indicator
+- [x] `src/constants/config.ts` — Default API endpoint, model names
+- [x] Config persisted to localStorage (never source code)
+- [x] Unit tests: settings load/save, validation
 
 **Agent:** `ai-integration-dev`
 
 ### 2.2 Prompt Engineering
-- [ ] `src/constants/prompts.ts` — 4 prompts: it→en, en→en, en→it, it→it
-- [ ] `src/features/ai-integration/prompt-builder.service.ts` — Build prompt per language pair
-- [ ] Unit tests: all 4 language pair combinations produce correct system prompts
+- [x] `src/constants/prompts.ts` — 4 prompts: it→en, en→en, en→it, it→it (full + compact variants)
+- [x] `buildSystemPrompt` / `buildCompactPrompt` exported from prompts.ts (no separate file needed)
+- [x] Unit tests: all 4 language pair combinations produce correct system prompts
 
 **Agent:** `ai-integration-dev`
 
 ### 2.3 Gemini Nano Service
-- [ ] `src/features/ai-integration/gemini-nano.service.ts`
+- [x] `src/features/ai-integration/gemini-nano.service.ts`
   - `isAvailable(): Promise<boolean>` — feature detect `window.ai`
   - `generate(systemPrompt, text): AsyncGenerator<string>` — streaming
-- [ ] Unit tests with mocked `window.ai` API
-- [ ] Error handling: not available, slow model download, session limit
+- [x] Unit tests with mocked `window.ai` API (11 tests)
+- [x] Error handling: not available, slow model download, session limit
 
 **Agent:** `ai-integration-dev`
 
 ### 2.4 External API Service
-- [ ] `src/features/ai-integration/external-api.service.ts`
+- [x] `src/features/ai-integration/external-api.service.ts`
   - `isConfigured(): boolean`
   - `generate(systemPrompt, text): AsyncGenerator<string>` — SSE streaming
-- [ ] Unit tests with MSW mock server
-- [ ] Error handling: network error, 401, 429, invalid JSON
+- [x] Unit tests (5 tests)
+- [x] Error handling: network error, 401, 429, invalid JSON
 
 **Agent:** `ai-integration-dev`
 
 ### 2.5 AI Manager (Orchestrator)
-- [ ] `src/features/ai-integration/ai-manager.service.ts`
+- [x] `src/features/ai-integration/ai-manager.service.ts`
   - Tries Gemini Nano first, falls back to external API
   - Throws `AINotConfiguredError` if both unavailable
-- [ ] `src/features/ai-integration/AIProvider.tsx` — Active backend indicator
-- [ ] `src/hooks/useAISession.ts` — Session lifecycle
-- [ ] Integration tests: fallback chain, error states, streaming updates
+- [x] `src/features/ai-integration/AIProvider.tsx` — Active backend indicator
+- [x] `src/hooks/useAISession.ts` — Session lifecycle (abort support)
+- [x] Integration tests: fallback chain, error states, streaming updates (6 tests)
 
 **Agent:** `ai-integration-dev`
 
 ### Phase 2 Exit Criteria
-- [ ] Gemini Nano detected and used when available
-- [ ] Falls back to external API (LM Studio default) when unavailable
-- [ ] Prompts are language-pair specific
-- [ ] Streaming responses display incrementally
-- [ ] Settings UI works and persists
-- [ ] All tests pass, coverage ≥ 80%
+- [x] Gemini Nano detected and used when available
+- [x] Falls back to external API (LM Studio default) when unavailable
+- [x] Prompts are language-pair specific
+- [x] Streaming responses display incrementally
+- [x] Settings UI works and persists
+- [x] All tests pass (98 tests), coverage ≥ 80%
 
 ---
 
@@ -401,7 +401,7 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 | Phase 1 | ✅ Complete | 49 tests passing, build clean, two-tier prompts (full + compact) |
 | Phase 1a | ✅ Complete | ISpeechProvider, WebSpeechProvider, SpeechProviderManager, language-utils — 87 tests passing |
 | Phase 1b | 🔲 Not started | Whisper WASM — requires Phase 1a, post-MVP optional |
-| Phase 2 | 🔲 Not started | |
+| Phase 2 | ✅ Complete | AIProvider, useAISession, gemini-nano tests — 98 tests passing |
 | Phase 3 | 🔲 Not started | |
 | Phase 4 | 🔲 Not started | |
 | Phase 5 | 🔲 Not started | |

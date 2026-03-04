@@ -6,21 +6,13 @@ import { TranscriptionDisplay } from '@/features/transcription/TranscriptionDisp
 import { DocumentationEditor } from '@/features/documentation-generation/DocumentationEditor';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
-import { generateDocumentation } from '@/features/ai-integration/ai-manager.service';
-import { sessionRepository } from '@/utils/repositories';
-import { AINotConfiguredError } from '@/types/ai';
+import { useAISession } from '@/hooks/useAISession';
 
 export const App = () => {
   const [showLanguageModal, setShowLanguageModal] = useState(true);
-  const { speakingLanguage, outputLanguage, loadFromStorage, unlockSession } = useLanguageStore();
-  const {
-    rawAIResponse,
-    selectedFormat,
-    setGenerating,
-    appendRawResponse,
-    setError,
-    reset: resetDoc,
-  } = useDocumentationStore();
+  const { loadFromStorage, unlockSession } = useLanguageStore();
+  const { error: docError, reset: resetDoc } = useDocumentationStore();
+  const { generate } = useAISession();
 
   useEffect(() => {
     loadFromStorage();
@@ -30,56 +22,11 @@ export const App = () => {
     setShowLanguageModal(false);
   };
 
-  const handleTranscriptionComplete = useCallback(
-    async (transcription: string) => {
-      resetDoc();
-      setGenerating(true);
-
-      let backend: 'gemini-nano' | 'external-api' = 'external-api';
-
-      try {
-        for await (const { chunk, backend: b } of generateDocumentation(
-          transcription,
-          speakingLanguage,
-          outputLanguage,
-        )) {
-          backend = b as 'gemini-nano' | 'external-api';
-          appendRawResponse(chunk);
-        }
-
-        const fullDoc = useDocumentationStore.getState().rawAIResponse;
-        await sessionRepository.save({
-          speakingLanguage,
-          outputLanguage,
-          transcription,
-          generatedDoc: fullDoc,
-          format: selectedFormat,
-          aiBackend: backend,
-          createdAt: new Date(),
-        });
-      } catch (err) {
-        if (err instanceof AINotConfiguredError) {
-          setError(err.message);
-        } else {
-          setError(err instanceof Error ? err.message : 'Generation failed');
-        }
-      } finally {
-        setGenerating(false);
-      }
-    },
-    [speakingLanguage, outputLanguage, selectedFormat, appendRawResponse, resetDoc, setGenerating, setError],
-  );
-
   const handleRegenerate = useCallback(() => {
     unlockSession();
     setShowLanguageModal(true);
     resetDoc();
   }, [unlockSession, resetDoc]);
-
-  const { error: docError } = useDocumentationStore();
-
-  // Suppress unused warning — rawAIResponse used via store subscription in DocumentationEditor
-  void rawAIResponse;
 
   return (
     <Layout>
@@ -96,7 +43,7 @@ export const App = () => {
               Change languages
             </button>
           </div>
-          <VoiceRecorder onTranscriptionComplete={handleTranscriptionComplete} />
+          <VoiceRecorder onTranscriptionComplete={generate} />
         </div>
 
         <TranscriptionDisplay />

@@ -1,4 +1,4 @@
-# Doc Assistant — AI Documentation Tool
+# Speak Doc — AI Documentation Tool
 
 Browser webapp: record voice → AI generates structured docs → copy to Confluence/Notion.
 

@@ -1,5 +1,5 @@
 # Task Breakdown
-## Doc Assistant — Phase-by-Phase Implementation
+## Speak Doc — Phase-by-Phase Implementation
 
 **Convention:** Each task includes the responsible agent from `.claude/agents/`.
 
@@ -10,7 +10,7 @@
 ## Phase 1 — Foundation + Language Selection + Voice Input (Week 1-2)
 
 ### 1.1 Project Setup
-- [x] Initialize Vite + React 18 + TypeScript project (`doc-assistant/`)
+- [x] Initialize Vite + React 18 + TypeScript project
 - [x] Configure Tailwind CSS + shadcn/ui
 - [x] Set up Vitest + React Testing Library + Playwright
 - [x] Configure ESLint + Prettier
@@ -253,38 +253,38 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 ## Phase 3 — Documentation Generation (Week 3-4)
 
 ### 3.1 Output Formatters
-- [ ] `src/features/documentation-generation/formatters/markdown.formatter.ts` — pass-through + cleanup
-- [ ] `src/features/documentation-generation/formatters/wiki.formatter.ts` — Confluence markup
-- [ ] `src/features/documentation-generation/formatters/html.formatter.ts` — HTML preview
-- [ ] Unit tests: edge cases (empty, special chars, code blocks, nested lists)
+- [x] `src/features/documentation-generation/formatters/markdown.formatter.ts` — pass-through + cleanup
+- [x] `src/features/documentation-generation/formatters/wiki.formatter.ts` — Confluence markup
+- [x] `src/features/documentation-generation/formatters/html.formatter.ts` — HTML preview
+- [x] Unit tests: edge cases (empty, special chars, code blocks, nested lists)
 
 **Agent:** `frontend-dev`
 
 ### 3.2 Documentation Generator Service
-- [ ] `src/features/documentation-generation/doc-generator.service.ts`
+- [x] `src/features/documentation-generation/doc-generator.service.ts`
   - Takes transcription + language pair → calls AI → streams output
-- [ ] `src/hooks/useDocumentation.ts` — Zustand doc store
+- [x] `src/hooks/useDocumentationStore.ts` — Zustand doc store
 
 **Agent:** `frontend-dev` + `ai-integration-dev`
 
 ### 3.3 Documentation Editor UI
-- [ ] `src/features/documentation-generation/DocumentationEditor.tsx`
+- [x] `src/features/documentation-generation/DocumentationEditor.tsx`
   - Format tabs (Markdown / Wiki / HTML)
   - Editable textarea
   - Live HTML preview panel
   - Copy to clipboard button
   - "Regenerate" button
-- [ ] Export: `src/features/export/ExportPanel.tsx` + `export.service.ts`
-- [ ] Integration test: transcription → AI → formatted doc → clipboard
+- [x] Export: `src/features/export/ExportPanel.tsx` + `export.service.ts`
+- [x] Integration test: transcription → AI → formatted doc → clipboard
 
 **Agent:** `frontend-dev`
 
 ### Phase 3 Exit Criteria
-- [ ] All 3 formats produce correct output
-- [ ] Confluence wiki markup is valid and paste-ready
-- [ ] Copy to clipboard works
-- [ ] User can edit before copying
-- [ ] All tests pass, coverage ≥ 80%
+- [x] All 3 formats produce correct output
+- [x] Confluence wiki markup is valid and paste-ready
+- [x] Copy to clipboard works
+- [x] User can edit before copying
+- [x] All tests pass (121 tests), coverage ≥ 80%
 
 ---
 
@@ -402,7 +402,7 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 | Phase 1a | ✅ Complete | ISpeechProvider, WebSpeechProvider, SpeechProviderManager, language-utils — 87 tests passing |
 | Phase 1b | 🔲 Not started | Whisper WASM — requires Phase 1a, post-MVP optional |
 | Phase 2 | ✅ Complete | AIProvider, useAISession, gemini-nano tests — 98 tests passing |
-| Phase 3 | 🔲 Not started | |
+| Phase 3 | ✅ Complete | Formatters, DocumentationEditor, ExportPanel, doc-generator tests — 121 tests passing |
 | Phase 4 | 🔲 Not started | |
 | Phase 5 | 🔲 Not started | |
 

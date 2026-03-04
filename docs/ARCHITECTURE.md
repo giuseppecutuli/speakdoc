@@ -250,13 +250,15 @@ The voice-input feature uses a **pluggable provider abstraction** to support mul
 
 ```typescript
 // src/features/voice-input/types/speech-provider.ts
+export type SpeechProviderName = 'web-speech' | 'whisper';
+
 export interface ISpeechProvider {
-  name: 'web-speech' | 'whisper' | string;
-  isAvailable(): Promise<boolean>;        // Feature detection
-  isConfigured(): Promise<boolean>;       // Config / model loaded
-  start(language: LanguageCode): void;    // Begin listening
-  stop(): void;                           // Stop (graceful)
-  abort(): void;                          // Abort immediately
+  readonly name: SpeechProviderName;
+  isAvailable(): boolean;          // Synchronous feature detection
+  isConfigured(): boolean;         // Synchronous config / model check
+  start(language: LanguageCode): void;
+  stop(): void;
+  abort(): void;
   onResult(callback: (result: TranscriptionResult) => void): void;
   onError(callback: (error: string) => void): void;
   onEnd(callback: () => void): void;
@@ -291,19 +293,23 @@ export interface ISpeechProvider {
 ```typescript
 // src/features/voice-input/SpeechProviderManager.ts
 class SpeechProviderManager {
-  async selectBestProvider(language: LanguageCode): Promise<ISpeechProvider> {
-    // 1. Honour explicit user preference from Settings
-    if (userSettings.speechProvider === 'whisper') {
-      if (await whisperProvider.isAvailable()) return whisperProvider;
-      throw new Error('Whisper unavailable (WebAssembly not supported)');
+  // Accepts provider array in constructor for dependency injection (testing)
+  constructor(providers: ISpeechProvider[] = [new WebSpeechProvider()]) { ... }
+
+  // Optional preferred provider name comes from user settings (Phase 1b)
+  selectBestProvider(preferredName?: SpeechProviderName): ISpeechProvider {
+    if (preferredName) {
+      const preferred = this.providers.find(p => p.name === preferredName);
+      if (preferred?.isAvailable() && preferred.isConfigured()) return preferred;
     }
-
-    // 2. Auto: pick best available
-    if (await whisperProvider.isAvailable()) return whisperProvider;
-    if (await webSpeechProvider.isAvailable()) return webSpeechProvider;
-
-    throw new Error('No speech provider available');
+    const available = this.providers.find(p => p.isAvailable() && p.isConfigured());
+    if (!available) throw new Error('No speech provider available');
+    return available;
   }
+
+  start(language: LanguageCode, callbacks: SpeechCallbacks, preferredName?: SpeechProviderName): void { ... }
+  stop(): void { ... }
+  abort(): void { ... }
 }
 ```
 
@@ -311,14 +317,16 @@ class SpeechProviderManager {
 
 ```typescript
 // src/utils/language-utils.ts
-export function getLanguageCodeForProvider(
+export const getLanguageCodeForProvider = (
   language: LanguageCode,
-  provider: ISpeechProvider
-): string {
-  if (provider.name === 'web-speech') return LANGUAGE_SPEECH_CODES[language]; // 'it-IT'
-  if (provider.name === 'whisper')    return WHISPER_LANGUAGE_CODES[language]; // 'it'
-  return language;
-}
+  provider: SpeechProviderName,
+): string => {
+  switch (provider) {
+    case 'whisper':    return language;                              // ISO 639-1 ('it')
+    case 'web-speech':
+    default:           return SUPPORTED_LANGUAGES[language].speechCode; // BCP 47 ('it-IT')
+  }
+};
 ```
 
 ### Settings Integration

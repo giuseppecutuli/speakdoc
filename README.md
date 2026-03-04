@@ -1,73 +1,130 @@
-# React + TypeScript + Vite
+# speakdoc
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> Record your voice → AI generates structured technical documentation → copy to Confluence or Notion.
 
-Currently, two official plugins are available:
+No backend. No server. Everything runs in the browser.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## What it does
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. **Select languages** — choose your speaking language and the documentation output language independently (English / Italian)
+2. **Record** — speak naturally; live transcription appears in real time via Web Speech API
+3. **Generate** — AI produces a structured wiki-style document with functional + technical sections, Mermaid diagrams, action items, and open questions
+4. **Copy** — paste directly into Confluence (wiki markup), Notion (Markdown), or any editor (HTML preview)
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## AI Backends
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+| Backend | When used | Context |
+|---|---|---|
+| Gemini Nano (`window.ai`) | Chrome 127+ with on-device AI flag | ~4k tokens — good for short recordings (≤5 min) |
+| External API (OpenAI-compatible) | Configured in Settings | 8k–128k tokens — suitable for 10–15 min recordings |
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Gemini Nano is tried first; falls back to the configured external API (default: LM Studio at `localhost:1234`).
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
+
+## Language Pairs
+
+| Speaking | Output | Notes |
+|---|---|---|
+| Italian | English | Translates first, then documents |
+| English | English | Documents directly |
+| English | Italian | Translates first, then documents |
+| Italian | Italian | Documents directly in Italian |
+
+---
+
+## Stack
+
+- **React 18 + TypeScript + Vite**
+- **Zustand** — state management
+- **Dexie.js** — IndexedDB session storage
+- **Tailwind CSS + shadcn/ui** — UI
+- **Vitest** — unit tests
+- **Web Speech API** — live transcription
+- **Web Audio API** — waveform visualizer
+
+---
+
+## Getting Started
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Enable Gemini Nano (Chrome)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. Open `chrome://flags/#optimization-guide-on-device-model`
+2. Set to **Enabled BypassPerfRequirement**
+3. Open `chrome://flags/#prompt-api-for-gemini-nano`
+4. Set to **Enabled**
+5. Restart Chrome
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Use external API (LM Studio / OpenAI)
+
+1. Open **Settings** in the app
+2. Set your API endpoint (e.g. `http://localhost:1234/v1`)
+3. Optionally set an API key and model name
+
+---
+
+## Development
+
+```bash
+npm run dev          # dev server
+npm run build        # production build (tsc + vite)
+npm test             # unit tests (vitest)
+npm run test:watch   # watch mode
+npm run lint         # eslint
 ```
+
+---
+
+## Project Structure
+
+```
+src/
+  features/
+    language-selection/   # Language modal + Zustand store
+    voice-input/          # Web Speech API + waveform
+    ai-integration/       # Gemini Nano + external API + fallback
+    transcription/        # Live transcription display
+    documentation-generation/  # Formatters (Markdown / Wiki / HTML)
+    learning/             # IndexedDB sessions + pattern analysis
+    export/               # Clipboard export
+  components/             # Shared UI
+  hooks/                  # Cross-feature hooks
+  types/                  # TypeScript interfaces
+  constants/              # Prompts, language codes, config
+  utils/                  # Pure utilities + repository DI
+docs/
+  ARCHITECTURE.md         # Technical architecture
+  TASKS.md                # Phase-by-phase task list
+  PRD.md                  # Product requirements
+```
+
+---
+
+## Deploy
+
+Static files only — deploy anywhere:
+
+```bash
+npm run build   # output: dist/
+```
+
+| Platform | Command |
+|---|---|
+| Vercel | `vercel deploy` |
+| Netlify | `netlify deploy` |
+| GitHub Pages | `gh-pages -d dist` |
+
+---
+
+## License
+
+MIT

@@ -81,48 +81,48 @@
 _Refactors the existing Web Speech API usage into a pluggable provider pattern. No user-facing changes. Unlocks Phase 1b (Whisper WASM) without blocking Phase 2–5._
 
 ### 1a.1 Define ISpeechProvider Interface
-- [ ] `src/features/voice-input/types/speech-provider.ts` — `ISpeechProvider` interface
-- [ ] Fields: `name`, `isAvailable()`, `isConfigured()`, `start()`, `stop()`, `abort()`, `onResult()`, `onError()`, `onEnd()`
-- [ ] Unit tests: interface contract (TypeScript compile-time verification)
+- [x] `src/features/voice-input/types/speech-provider.ts` — `ISpeechProvider` interface
+- [x] Fields: `name`, `isAvailable()`, `isConfigured()`, `start()`, `stop()`, `abort()`, `onResult()`, `onError()`, `onEnd()`
+- [x] Unit tests: interface contract (TypeScript compile-time verification)
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 1a.2 WebSpeechProvider — Adapter
-- [ ] `src/features/voice-input/providers/WebSpeechProvider.ts` — wraps existing `speech-recognition.service.ts`
-- [ ] Implements `ISpeechProvider`; delegates to existing service (no internal refactor)
-- [ ] Unit tests: callback invocation, error propagation
+- [x] `src/features/voice-input/providers/WebSpeechProvider.ts` — wraps existing `speech-recognition.service.ts`
+- [x] Implements `ISpeechProvider`; delegates to existing service (no internal refactor)
+- [x] Unit tests: callback invocation, error propagation
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 1a.3 SpeechProviderManager
-- [ ] `src/features/voice-input/SpeechProviderManager.ts` — orchestrator + fallback chain
-- [ ] `selectBestProvider(language)` → checks user settings → availability → fallback
-- [ ] Accepts provider array in constructor (dependency injection for testing)
-- [ ] Unit tests: user-preference selection, fallback chain, no-provider error
+- [x] `src/features/voice-input/SpeechProviderManager.ts` — orchestrator + fallback chain
+- [x] `selectBestProvider(preferredName?)` → checks user preference → availability → fallback
+- [x] Accepts provider array in constructor (dependency injection for testing)
+- [x] Unit tests: user-preference selection, fallback chain, no-provider error
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 1a.4 Wire VoiceRecorder to SpeechProviderManager
-- [ ] Update `src/features/voice-input/VoiceRecorder.tsx` to use `SpeechProviderManager` instead of direct service call
-- [ ] All existing Phase 1 tests must still pass (regression check mandatory)
+- [x] Update `src/features/voice-input/VoiceRecorder.tsx` to use `SpeechProviderManager` instead of direct service call
+- [x] All existing Phase 1 tests must still pass (regression check mandatory)
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** MEDIUM (regression)
 
 ### 1a.5 Language Code Mapping Utility
-- [ ] Extend `src/utils/language-utils.ts` — `getLanguageCodeForProvider(language, provider)`
-- [ ] Web Speech → BCP 47 (`'it-IT'`); Whisper → ISO 639-1 (`'it'`)
-- [ ] Unit tests: all language codes for both provider types
+- [x] Create `src/utils/language-utils.ts` — `getLanguageCodeForProvider(language, provider)`
+- [x] Web Speech → BCP 47 (`'it-IT'`); Whisper → ISO 639-1 (`'it'`)
+- [x] Unit tests: all language codes for both provider types
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### Phase 1a Exit Criteria
-- [ ] `ISpeechProvider` interface defined and exported
-- [ ] `WebSpeechProvider` adapts existing service (no regression)
-- [ ] `SpeechProviderManager` selects provider correctly
-- [ ] `VoiceRecorder` uses manager
-- [ ] Language code mapping covers all language codes
-- [ ] All Phase 1 tests still pass
-- [ ] New tests pass; coverage ≥ 80%
+- [x] `ISpeechProvider` interface defined and exported
+- [x] `WebSpeechProvider` adapts existing service (no regression)
+- [x] `SpeechProviderManager` selects provider correctly
+- [x] `VoiceRecorder` uses manager
+- [x] Language code mapping covers all language codes
+- [x] All Phase 1 tests still pass
+- [x] New tests pass; coverage ≥ 80% (87 tests passing)
 
 ---
 
@@ -399,7 +399,7 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 | Phase | Status | Notes |
 |---|---|---|
 | Phase 1 | ✅ Complete | 49 tests passing, build clean, two-tier prompts (full + compact) |
-| Phase 1a | 🔲 Not started | Speech provider abstraction — can run parallel to Phase 2 |
+| Phase 1a | ✅ Complete | ISpeechProvider, WebSpeechProvider, SpeechProviderManager, language-utils — 87 tests passing |
 | Phase 1b | 🔲 Not started | Whisper WASM — requires Phase 1a, post-MVP optional |
 | Phase 2 | 🔲 Not started | |
 | Phase 3 | 🔲 Not started | |

@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import { Mic, MicOff, Square, Pause, Play } from 'lucide-react';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
-import { SpeechRecognitionService } from './speech-recognition.service';
+import { SpeechProviderManager } from './SpeechProviderManager';
 import { WaveformVisualizer } from './waveform-visualizer';
 import { cn } from '@/utils/cn';
 
@@ -15,13 +15,13 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
     useRecordingStore();
   const { speakingLanguage, lockSession, unlockSession } = useLanguageStore();
 
-  const recognitionRef = useRef<SpeechRecognitionService | null>(null);
+  const managerRef = useRef<SpeechProviderManager>(new SpeechProviderManager());
   const visualizerRef = useRef<WaveformVisualizer | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const stopAll = useCallback(() => {
-    recognitionRef.current?.stop();
+    managerRef.current.stop();
     visualizerRef.current?.stop();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -45,18 +45,11 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
       await visualizer.connect(stream);
       if (canvasRef.current) visualizer.draw(canvasRef.current);
 
-      const recognition = new SpeechRecognitionService(
-        ({ transcript, isFinal }) => appendTranscription(transcript, isFinal),
-        (err) => setError(err),
-        () => {
-          if (useRecordingStore.getState().status === 'recording') {
-            // auto-restart on end (continuous mode sometimes stops)
-            recognitionRef.current?.start(speakingLanguage);
-          }
-        },
-      );
-      recognitionRef.current = recognition;
-      recognition.start(speakingLanguage);
+      managerRef.current.start(speakingLanguage, {
+        onResult: ({ transcript, isFinal }) => appendTranscription(transcript, isFinal),
+        onError: (err) => setError(err),
+        onEnd: () => {},
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Microphone access denied');
       setStatus('idle');
@@ -64,7 +57,7 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
   };
 
   const handlePause = () => {
-    recognitionRef.current?.stop();
+    managerRef.current.stop();
     visualizerRef.current?.stop();
     setStatus('paused');
   };
@@ -77,7 +70,11 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
       await visualizer.connect(streamRef.current);
       visualizer.draw(canvasRef.current);
     }
-    recognitionRef.current?.start(speakingLanguage);
+    managerRef.current.start(speakingLanguage, {
+      onResult: ({ transcript, isFinal }) => appendTranscription(transcript, isFinal),
+      onError: (err) => setError(err),
+      onEnd: () => {},
+    });
   };
 
   const handleStop = () => {

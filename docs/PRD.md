@@ -1,7 +1,7 @@
 # Product Requirements Document
 ## Speak Doc — AI-Powered Documentation Tool
 
-**Version:** 1.1
+**Version:** 1.2
 **Status:** Approved
 **Last Updated:** 2026-03-05
 
@@ -64,6 +64,8 @@ A browser-based tool that:
 | Audio file import for Whisper transcription | P2 | 4 |
 | Documentation template selection (Meeting Notes, Tech Spec, ADR, Bug Report) | P1 | 4 |
 | Session history browser (list, preview, re-export) | P1 | 4 |
+| AI inline editing (improve selected text or full doc via prompt) | P1 | 4 |
+| Revision history / undo for AI edits | P1 | 4 |
 
 ### Out of Scope (MVP)
 
@@ -128,6 +130,25 @@ A browser-based tool that:
 - **FR-08.4** — Selected template MUST persist to localStorage and pre-fill on next session
 - **FR-08.5** — Template can be changed at any time before or after recording (does not lock like language)
 
+### FR-09: AI Inline Editing
+
+- **FR-09.1** — The user MUST be able to select text in the Markdown or Wiki editor and trigger an AI improvement prompt on the selection
+- **FR-09.2** — A floating toolbar MUST appear above the selection with an "Improve with AI" button
+- **FR-09.3** — The user MUST be able to enter a free-text instruction (e.g., "make it more formal", "shorten this")
+- **FR-09.4** — The AI MUST rewrite ONLY the selected text and replace it inline; no other content must change
+- **FR-09.5** — The user MUST be able to trigger AI improvement on the entire document (not just a selection) via a dedicated button in the editor toolbar
+- **FR-09.6** — AI improvement MUST reuse the existing AI backend (Gemini Nano or external API) — no separate model needed
+- **FR-09.7** — The HTML Preview tab MUST NOT support inline editing; a tooltip MUST explain the limitation
+- **FR-09.8** — Instruction input MUST be capped at 500 characters with validation
+
+### FR-10: Revision History (Undo)
+
+- **FR-10.1** — Before any AI-driven content replacement (inline or full-doc), the app MUST snapshot the current document state
+- **FR-10.2** — An "Undo" button MUST appear in the editor toolbar after any AI edit, allowing the user to revert to the previous snapshot
+- **FR-10.3** — A "Redo" button MUST allow moving forward again after an undo
+- **FR-10.4** — History MUST be session-scoped (in-memory only, not persisted to IndexedDB)
+- **FR-10.5** — History stack MUST be capped at 20 snapshots to prevent memory issues
+
 ### FR-05: Learning System
 
 - **FR-05.1** — Each completed session MUST be stored in IndexedDB with metadata (language pair, format used, timestamp)
@@ -188,7 +209,8 @@ A browser-based tool that:
    ├── Template selector dropdown (Generic / Meeting Notes / Tech Spec / ADR / Bug Report)
    ├── [Markdown] [Wiki] [HTML] tabs
    ├── Editable text area
-   ├── [Copy to Clipboard]
+   │   └── Select text → floating "Improve with AI" button → enter instruction → AI rewrites selection
+   ├── Toolbar: [Undo] [Redo] [Improve Doc] [Regenerate] [Copy to Clipboard]
    ├── [Download as file] → saves .md/.txt/.html
    └── [Save Session] → stored in IndexedDB
 

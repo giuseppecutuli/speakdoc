@@ -7,6 +7,8 @@ export const STORAGE_KEYS = {
   API_ENDPOINT: 'speak-doc:api-endpoint',
   API_KEY: 'speak-doc:api-key',
   MODEL: 'speak-doc:model',
+  SPEECH_PROVIDER: 'speak-doc:speech-provider',
+  WHISPER_MODEL_SIZE: 'speak-doc:whisper-model-size',
 } as const;
 
 export const MIN_SESSIONS_FOR_SUGGESTIONS = 5;

@@ -276,15 +276,22 @@ export interface ISpeechProvider {
 - **Path**: `src/features/voice-input/providers/WebSpeechProvider.ts`
 
 #### WhisperProvider (via WebAssembly)
-- **Status**: Phase 1b — post-MVP optional feature
+- **Status**: ✅ Phase 1b Complete + Bug Fixes Applied
 - **Technology**: whisper.cpp compiled to WASM, runs 100% in the browser — no server needed
-- **Library**: `@xenova/transformers` (battle-tested WASM wrapper for Whisper models)
+- **Library**: `@xenova/transformers` v3+ (battle-tested WASM wrapper for Whisper models)
 - **Availability**: Any browser with WebAssembly support (Chrome, Firefox, Edge, Safari)
 - **Accuracy**: ~95–99% (state-of-the-art)
 - **Latency**: ~5–30 sec per recording (CPU-bound, device-dependent)
 - **Config**: Model download on first use — tiny (~45 MB), base (~75 MB), small (~150 MB)
-- **Caching**: Model cached in IndexedDB via Dexie after first download
-- **Path**: `src/features/voice-input/providers/WhisperProvider.ts`
+- **Caching**: Model cached in IndexedDB via Dexie after first download (with localStorage persistence marker)
+- **Components**:
+  - `src/features/voice-input/providers/WhisperProvider.ts` — implements ISpeechProvider, MediaRecorder-based capture, transcription via WhisperService
+  - `src/features/voice-input/whisper.service.ts` — wraps @xenova/transformers pipeline, lifecycle management (load/transcribe/unload), with progress guard (only process numeric progress events)
+  - `src/features/voice-input/whisper-model-cache.ts` — IndexedDB storage for downloaded models
+- **Storage**: `src/utils/db.ts` — WhisperModelRecord type, whisperModels table (Dexie v2)
+- **Reliability Improvements**:
+  - **Bug Fix 1 — Model cache persistence** (localStorage + Settings.tsx): After page refresh, UI now correctly detects cached model and skips "Download" button. Marker key `speak-doc:whisper-loaded:{modelId}` persisted to localStorage; `WhisperModelSection` initial `loadState` derives from this marker; `markWhisperModelCached()` called after successful download.
+  - **Bug Fix 2 — Progress bar accuracy** (whisper.service.ts + Settings.tsx): Only processes `progress` events with numeric `event.progress` field (guards against `undefined`, `NaN`). UI progress updates use `Math.max(prev, Math.round(pct))` to prevent backward jumps when multiple model files are downloaded sequentially.
 
 > **Why WASM?** whisper.cpp can be compiled to WebAssembly, allowing it to run directly in the browser tab with no backend. `@xenova/transformers` provides a ready-to-use JS/WASM bundle with quantized Whisper models.
 
@@ -294,14 +301,18 @@ export interface ISpeechProvider {
 // src/features/voice-input/SpeechProviderManager.ts
 class SpeechProviderManager {
   // Accepts provider array in constructor for dependency injection (testing)
-  constructor(providers: ISpeechProvider[] = [new WebSpeechProvider()]) { ... }
+  constructor(providers: ISpeechProvider[] = [
+    new WebSpeechProvider(),
+    new WhisperProvider(),
+  ]) { ... }
 
-  // Optional preferred provider name comes from user settings (Phase 1b)
+  // User-preferred provider name comes from settings localStorage (Phase 1b)
   selectBestProvider(preferredName?: SpeechProviderName): ISpeechProvider {
-    if (preferredName) {
+    if (preferredName && preferredName !== 'auto') {
       const preferred = this.providers.find(p => p.name === preferredName);
       if (preferred?.isAvailable() && preferred.isConfigured()) return preferred;
     }
+    // Fall back to first available + configured provider
     const available = this.providers.find(p => p.isAvailable() && p.isConfigured());
     if (!available) throw new Error('No speech provider available');
     return available;
@@ -331,15 +342,37 @@ export const getLanguageCodeForProvider = (
 
 ### Settings Integration
 
+**Phase 1b Implementation:**
+
 ```typescript
-// Additions to settings store
-export interface SpeechSettings {
-  speechProvider: 'web-speech' | 'whisper' | 'auto'; // 'auto' = best available
-  whisperModelSize: 'tiny' | 'base' | 'small';
-}
+// src/constants/config.ts
+export const STORAGE_KEYS = {
+  SPEECH_PROVIDER: 'speechProvider',         // 'web-speech' | 'whisper' | 'auto'
+  WHISPER_MODEL_SIZE: 'whisperModelSize',   // 'tiny' | 'base' | 'small'
+  // ... other keys
+};
+
+// src/constants/whisper-config.ts
+export type WhisperModelSize = 'tiny' | 'base' | 'small';
+export const WHISPER_MODELS: Record<WhisperModelSize, {
+  modelId: string;
+  label: string;
+  approxSize: string;
+}> = {
+  tiny:  { modelId: 'Xenova/whisper-tiny', label: 'Tiny (~45 MB)', approxSize: '45 MB' },
+  base:  { modelId: 'Xenova/whisper-base', label: 'Base (~75 MB)', approxSize: '75 MB' },
+  small: { modelId: 'Xenova/whisper-small', label: 'Small (~150 MB)', approxSize: '150 MB' },
+};
+export const DEFAULT_WHISPER_MODEL_SIZE: WhisperModelSize = 'base';
+export const WHISPER_LOAD_TIMEOUT_MS = 120000;
 ```
 
-UI additions: provider dropdown, active-provider badge, model-download progress bar on first Whisper use.
+**UI enhancements in `src/components/Settings.tsx`:**
+- Speech Recognition section with provider dropdown (Auto / Web Speech API / Whisper)
+- Model size selector (Tiny / Base / Small)
+- Download progress bar with % and size display
+- "Clear Model Cache" button
+- Active provider badge in recording UI
 
 ### Updated Data Flow
 
@@ -438,12 +471,14 @@ All services consume `sessionRepository` from this file — never instantiate re
 class DocAssistantDB extends Dexie {
   sessions!: Table<DocumentationSession>;
   feedback!: Table<SessionFeedback>;
+  whisperModels!: Table<WhisperModelRecord>;  // Phase 1b
 
   constructor() {
     super('DocAssistantDB');
-    this.version(1).stores({
+    this.version(2).stores({
       sessions: '++id, speakingLanguage, outputLanguage, format, createdAt',
       feedback: '++id, sessionId, rating, createdAt',
+      whisperModels: 'modelId, downloadedAt',  // Phase 1b
     });
   }
 }
@@ -457,6 +492,14 @@ interface DocumentationSession {
   format: OutputFormat;
   aiBackend: 'gemini-nano' | 'external-api';
   createdAt: Date;
+}
+
+// Phase 1b: Whisper model cache
+interface WhisperModelRecord {
+  modelId: string;                    // e.g., 'Xenova/whisper-base'
+  modelSize: WhisperModelSize;        // 'tiny' | 'base' | 'small'
+  data: ArrayBuffer;                  // Binary WASM model
+  downloadedAt: Date;
 }
 ```
 

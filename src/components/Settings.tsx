@@ -1,10 +1,34 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { Settings2, X, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Settings2, X, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { loadAIConfig, saveAIConfig } from '@/features/ai-integration/external-api.service';
 import { isGeminiNanoAvailable } from '@/features/ai-integration/gemini-nano.service';
 import type { AIBackend } from '@/types/ai';
 import { cn } from '@/utils/cn';
+import { STORAGE_KEYS } from '@/constants/config';
+import { WHISPER_MODELS, DEFAULT_WHISPER_MODEL_SIZE, type WhisperModelSize } from '@/constants/whisper-config';
+import { WhisperService } from '@/features/voice-input/whisper.service';
+import type { SpeechProviderName } from '@/features/voice-input/types/speech-provider';
+
+type SpeechPreference = 'auto' | SpeechProviderName;
+
+const loadSpeechPreference = (): SpeechPreference =>
+  (localStorage.getItem(STORAGE_KEYS.SPEECH_PROVIDER) as SpeechPreference) ?? 'auto';
+
+const saveSpeechPreference = (value: SpeechPreference) =>
+  localStorage.setItem(STORAGE_KEYS.SPEECH_PROVIDER, value);
+
+const loadWhisperModelSize = (): WhisperModelSize =>
+  (localStorage.getItem(STORAGE_KEYS.WHISPER_MODEL_SIZE) as WhisperModelSize) ?? DEFAULT_WHISPER_MODEL_SIZE;
+
+const saveWhisperModelSize = (value: WhisperModelSize) =>
+  localStorage.setItem(STORAGE_KEYS.WHISPER_MODEL_SIZE, value);
+
+type WhisperLoadState = 'idle' | 'loading' | 'loaded' | 'error';
+
+const whisperLoadedKey = (modelId: string) => `speak-doc:whisper-loaded:${modelId}`;
+const isWhisperModelCached = (modelId: string) => localStorage.getItem(whisperLoadedKey(modelId)) === '1';
+const markWhisperModelCached = (modelId: string) => localStorage.setItem(whisperLoadedKey(modelId), '1');
 
 const BackendBadge = ({ backend }: { backend: AIBackend }) => {
   const map = {
@@ -115,6 +139,113 @@ const GeminiNanoGuide = ({ defaultOpen }: { defaultOpen: boolean }) => {
   );
 };
 
+const PROVIDER_OPTIONS: { value: SpeechPreference; label: string; description: string }[] = [
+  { value: 'auto', label: 'Auto', description: 'Use Web Speech API when available, fall back to Whisper' },
+  { value: 'web-speech', label: 'Web Speech API', description: 'Browser built-in — online, real-time' },
+  { value: 'whisper', label: 'Whisper (offline)', description: 'Local WASM model — works without internet' },
+];
+
+const WhisperModelSection = () => {
+  const [modelSize, setModelSize] = useState<WhisperModelSize>(loadWhisperModelSize);
+  const [loadState, setLoadState] = useState<WhisperLoadState>(() => {
+    const { modelId } = WHISPER_MODELS[loadWhisperModelSize()];
+    return isWhisperModelCached(modelId) ? 'loaded' : 'idle';
+  });
+  const [progress, setProgress] = useState(0);
+  const serviceRef = useRef<WhisperService | null>(null);
+
+  useEffect(() => {
+    serviceRef.current = new WhisperService();
+  }, []);
+
+  const handleModelSizeChange = (size: WhisperModelSize) => {
+    setModelSize(size);
+    saveWhisperModelSize(size);
+    const { modelId } = WHISPER_MODELS[size];
+    setLoadState(isWhisperModelCached(modelId) ? 'loaded' : 'idle');
+    setProgress(0);
+  };
+
+  const handleLoad = async () => {
+    if (!serviceRef.current) return;
+    setLoadState('loading');
+    setProgress(0);
+    try {
+      await serviceRef.current.load(modelSize, (pct) => setProgress((prev) => Math.max(prev, Math.round(pct))));
+      markWhisperModelCached(WHISPER_MODELS[modelSize].modelId);
+      setLoadState('loaded');
+    } catch {
+      setLoadState('error');
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded-md border border-slate-200 p-3">
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-slate-600">Model size</label>
+        <select
+          value={modelSize}
+          onChange={(e) => handleModelSizeChange(e.target.value as WhisperModelSize)}
+          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {(Object.keys(WHISPER_MODELS) as WhisperModelSize[]).map((size) => (
+            <option key={size} value={size}>
+              {WHISPER_MODELS[size].label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {loadState === 'loading' && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Downloading model…
+            </span>
+            <span>{progress}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full bg-indigo-500 transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {loadState === 'loaded' && (
+        <p className="flex items-center gap-1.5 text-xs text-green-600">
+          <CheckCircle className="h-3.5 w-3.5" />
+          Model loaded — ready for offline use
+        </p>
+      )}
+
+      {loadState === 'error' && (
+        <p className="flex items-center gap-1.5 text-xs text-red-600">
+          <XCircle className="h-3.5 w-3.5" />
+          Failed to load model. Check your connection and try again.
+        </p>
+      )}
+
+      {loadState !== 'loaded' && (
+        <button
+          onClick={handleLoad}
+          disabled={loadState === 'loading'}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          {loadState === 'loading' ? 'Downloading…' : 'Download & Load Model'}
+        </button>
+      )}
+
+      <p className="text-xs text-slate-400">
+        Model is stored in your browser. Downloads only once per device.
+      </p>
+    </div>
+  );
+};
+
 export const SettingsPanel = () => {
   const [open, setOpen] = useState(false);
   const [endpoint, setEndpoint] = useState('');
@@ -122,6 +253,7 @@ export const SettingsPanel = () => {
   const [model, setModel] = useState('');
   const [activeBackend, setActiveBackend] = useState<AIBackend>('none');
   const [saved, setSaved] = useState(false);
+  const [speechPreference, setSpeechPreference] = useState<SpeechPreference>(loadSpeechPreference);
 
   useEffect(() => {
     if (open) {
@@ -129,11 +261,17 @@ export const SettingsPanel = () => {
       setEndpoint(config.apiEndpoint);
       setApiKey(config.apiKey);
       setModel(config.model);
+      setSpeechPreference(loadSpeechPreference());
       isGeminiNanoAvailable().then((available) => {
         setActiveBackend(available ? 'gemini-nano' : config.apiEndpoint ? 'external-api' : 'none');
       });
     }
   }, [open]);
+
+  const handleSpeechPreferenceChange = (value: SpeechPreference) => {
+    setSpeechPreference(value);
+    saveSpeechPreference(value);
+  };
 
   const handleSave = () => {
     saveAIConfig({ apiEndpoint: endpoint, apiKey, model });
@@ -167,6 +305,31 @@ export const SettingsPanel = () => {
             </div>
 
             <div className="space-y-6">
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-slate-700">Speech Recognition</h4>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-600">Provider</label>
+                  <select
+                    value={speechPreference}
+                    onChange={(e) => handleSpeechPreferenceChange(e.target.value as SpeechPreference)}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {PROVIDER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400">
+                    {PROVIDER_OPTIONS.find((o) => o.value === speechPreference)?.description}
+                  </p>
+                </div>
+
+                {(speechPreference === 'whisper' || speechPreference === 'auto') && (
+                  <WhisperModelSection />
+                )}
+              </div>
+
               <div>
                 <h4 className="mb-2 text-sm font-semibold text-slate-700">Active AI Backend</h4>
                 <BackendBadge backend={activeBackend} />

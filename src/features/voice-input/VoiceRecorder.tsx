@@ -5,13 +5,14 @@ import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { SpeechProviderManager } from './SpeechProviderManager';
 import { WaveformVisualizer } from './waveform-visualizer';
 import { cn } from '@/utils/cn';
+import { createAudioUrl, revokeAudioUrl } from '@/utils/audio-url';
 
 interface VoiceRecorderProps {
   onTranscriptionComplete: (text: string) => void;
 }
 
 export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) => {
-  const { status, transcription, interimTranscription, error, setStatus, appendTranscription, setError, reset } =
+  const { status, transcription, interimTranscription, audioBlob, error, setStatus, appendTranscription, setAudioBlob, setError, reset } =
     useRecordingStore();
   const { speakingLanguage, lockSession, unlockSession } = useLanguageStore();
 
@@ -19,18 +20,40 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
   const visualizerRef = useRef<WaveformVisualizer | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioUrlRef = useRef<string | null>(null);
+
+  const stopMediaRecorder = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
 
   const stopAll = useCallback(() => {
+    stopMediaRecorder();
     managerRef.current.stop();
     visualizerRef.current?.stop();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     unlockSession();
-  }, [unlockSession]);
+  }, [stopMediaRecorder, unlockSession]);
 
-  useEffect(() => () => stopAll(), [stopAll]);
+  useEffect(() => {
+    return () => {
+      stopAll();
+      if (audioUrlRef.current) {
+        revokeAudioUrl(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+    };
+  }, [stopAll]);
 
   const handleStart = async () => {
+    if (audioUrlRef.current) {
+      revokeAudioUrl(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
     reset();
     setError(null);
 
@@ -44,6 +67,18 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
       visualizerRef.current = visualizer;
       await visualizer.connect(stream);
       if (canvasRef.current) visualizer.draw(canvasRef.current);
+
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(blob);
+      };
+      mediaRecorder.start();
 
       managerRef.current.start(speakingLanguage, {
         onResult: ({ transcript, isFinal }) => appendTranscription(transcript, isFinal),
@@ -88,6 +123,11 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
   const isRecording = status === 'recording';
   const isPaused = status === 'paused';
   const isDone = status === 'done';
+
+  // Create object URL for audio playback when blob is available
+  if (isDone && audioBlob && !audioUrlRef.current) {
+    audioUrlRef.current = createAudioUrl(audioBlob);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -179,6 +219,16 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
           </span>
         )}
       </div>
+
+      {isDone && audioUrlRef.current && (
+        <audio
+          controls
+          src={audioUrlRef.current}
+          className="w-full"
+          aria-label="Recording playback"
+          data-testid="audio-playback"
+        />
+      )}
 
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">

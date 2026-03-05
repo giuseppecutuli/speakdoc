@@ -2,6 +2,7 @@ import type { LanguageCode } from '@/types/language';
 import type { TranscriptionResult } from '@/types/voice';
 import type { ISpeechProvider, SpeechProviderName } from './types/speech-provider';
 import { WebSpeechProvider } from './providers/WebSpeechProvider';
+import { WhisperProvider } from './providers/WhisperProvider';
 
 export interface SpeechCallbacks {
   onResult: (result: TranscriptionResult) => void;
@@ -9,7 +10,7 @@ export interface SpeechCallbacks {
   onEnd: () => void;
 }
 
-const DEFAULT_PROVIDERS = (): ISpeechProvider[] => [new WebSpeechProvider()];
+const DEFAULT_PROVIDERS = (): ISpeechProvider[] => [new WebSpeechProvider(), new WhisperProvider()];
 
 export class SpeechProviderManager {
   private readonly providers: ISpeechProvider[];

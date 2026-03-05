@@ -1,9 +1,9 @@
 # Product Requirements Document
 ## Speak Doc — AI-Powered Documentation Tool
 
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Approved
-**Last Updated:** 2026-03-04
+**Last Updated:** 2026-03-05
 
 ---
 
@@ -59,15 +59,21 @@ A browser-based tool that:
 | Dark mode | P2 | 5 |
 | Settings UI (API endpoint, API key) | P0 | 2 |
 | Language persistence across sessions | P1 | 1 |
+| Audio playback after recording | P1 | 3 |
+| Audio export (download recording as file) | P1 | 4 |
+| Audio file import for Whisper transcription | P2 | 4 |
+| Documentation template selection (Meeting Notes, Tech Spec, ADR, Bug Report) | P1 | 4 |
+| Session history browser (list, preview, re-export) | P1 | 4 |
 
 ### Out of Scope (MVP)
 
 - Cloud sync / user accounts
 - Real-time collaboration
 - Mobile recording (read-only on mobile)
-- Audio file upload (only live recording)
 - More than 2 languages (expand post-MVP)
 - Backend server / database
+- Audio storage in cloud (defer to Supabase integration phase)
+- Direct Confluence/Notion API push (post-MVP)
 
 ---
 
@@ -105,6 +111,22 @@ A browser-based tool that:
 - **FR-04.3** — The user MUST be able to switch between output formats: Markdown, Wiki, HTML
 - **FR-04.4** — The user MUST be able to edit the generated documentation before copying
 - **FR-04.5** — One-click copy to clipboard MUST work for all formats
+
+### FR-07: Audio Management
+
+- **FR-07.1** — After recording stops, the app MUST offer in-app audio playback via an `<audio>` element
+- **FR-07.2** — The user MUST be able to download the recording as a file (`.webm` on Chrome/Firefox, `.mp4` on Safari)
+- **FR-07.3** — When Whisper is the active speech provider, the user MAY upload an existing audio file for transcription
+- **FR-07.4** — Uploaded audio files MUST be capped at 50 MB with a clear validation error if exceeded
+- **FR-07.5** — Uploaded audio files MUST NOT be stored persistently — processed in-memory only
+
+### FR-08: Documentation Templates
+
+- **FR-08.1** — The user MUST be able to select a documentation template before generating docs
+- **FR-08.2** — Built-in templates: Generic (default), Meeting Notes, Technical Specification, ADR (Architecture Decision Record), Bug Report
+- **FR-08.3** — Template selection MUST influence the AI system prompt (additive — appended to the base language-pair prompt)
+- **FR-08.4** — Selected template MUST persist to localStorage and pre-fill on next session
+- **FR-08.5** — Template can be changed at any time before or after recording (does not lock like language)
 
 ### FR-05: Learning System
 
@@ -150,18 +172,27 @@ A browser-based tool that:
    ├── Waveform visualization (animated)
    ├── Live transcription panel (Italian text appears)
    └── [Stop Recording]
+       OR
+   ├── [Upload Audio File] (Whisper provider only) → file picker → transcription
 
-3. AI Processing
+3. Post-Recording
+   ├── Audio playback bar (play/pause the just-recorded audio)
+   ├── [Download Recording] → saves .webm/.mp4 file
+   └── [Generate Documentation]
+
+4. AI Processing
    ├── "Generating documentation..." (streaming)
    └── English documentation appears incrementally
 
-4. Documentation Editor
+5. Documentation Editor
+   ├── Template selector dropdown (Generic / Meeting Notes / Tech Spec / ADR / Bug Report)
    ├── [Markdown] [Wiki] [HTML] tabs
    ├── Editable text area
    ├── [Copy to Clipboard]
+   ├── [Download as file] → saves .md/.txt/.html
    └── [Save Session] → stored in IndexedDB
 
-5. (After 5+ sessions)
+6. (After 5+ sessions)
    └── Suggestions panel appears with improvement tips
 ```
 

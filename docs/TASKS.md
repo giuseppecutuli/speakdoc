@@ -627,11 +627,11 @@ _Refactor `Settings.tsx` (455 lines, exceeds 400-line guideline) by extracting i
 | Phase 2 | ✅ Complete | AIProvider, useAISession, gemini-nano tests — 98 tests passing |
 | Phase 3 | ✅ Complete | Formatters, DocumentationEditor, ExportPanel, audio playback — 163 tests passing |
 | Phase 4 | ✅ Complete | LearningPanel, SessionHistory, AudioFileImporter, TemplateSelector, audio-export, data-management — 186 tests passing |
-| Phase 4.10 | 🔲 Not started | Revision history (undo/redo) in useDocumentationStore + editor toolbar |
-| Phase 4.11 | 🔲 Not started | Improvement prompts (selection + document scope) |
-| Phase 4.12 | 🔲 Not started | inline-improvement.service.ts |
-| Phase 4.13 | 🔲 Not started | SelectionImprovementPopover + DocumentImprovementModal + editor wiring |
-| Phase 4.14 | 🔲 Not started | Refactor Settings.tsx → extract BackendBadge, GeminiNanoGuide, WhisperModelSection |
+| Phase 4.10 | ✅ Complete | Revision history (undo/redo) in useDocumentationStore + editor toolbar — 11 new tests |
+| Phase 4.11 | ✅ Complete | Improvement prompts (selection + document scope) — 9 new tests |
+| Phase 4.12 | ✅ Complete | inline-improvement.service.ts — 6 new tests |
+| Phase 4.13 | ✅ Complete | SelectionImprovementPopover + DocumentImprovementModal + editor wiring — 11 new tests |
+| Phase 4.14 | ✅ Complete | Refactor Settings.tsx → BackendBadge, GeminiNanoGuide, WhisperModelSection — 223 tests passing |
 | Phase 5 | 🔲 Not started | Layout, polish, E2E tests, accessibility |
 
 ---

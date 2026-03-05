@@ -1,10 +1,12 @@
 import * as Tabs from '@radix-ui/react-tabs';
-import { Copy, RefreshCw, CheckCheck } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Copy, RefreshCw, CheckCheck, Undo2, Redo2, Wand2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
 import { applyFormat } from './doc-generator.service';
 import { cn } from '@/utils/cn';
 import type { OutputFormat } from '@/types/documentation';
+import { SelectionImprovementPopover } from './SelectionImprovementPopover';
+import { DocumentImprovementModal } from './DocumentImprovementModal';
 
 const FORMATS: { value: OutputFormat; label: string }[] = [
   { value: 'markdown', label: 'Markdown' },
@@ -14,14 +16,29 @@ const FORMATS: { value: OutputFormat; label: string }[] = [
 
 interface DocumentationEditorProps {
   onRegenerate?: () => void;
+  outputLanguage?: 'en' | 'it';
 }
 
-export const DocumentationEditor = ({ onRegenerate }: DocumentationEditorProps) => {
-  const { rawAIResponse, selectedFormat, isGenerating, setFormat, setFormattedOutput } =
-    useDocumentationStore();
+export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: DocumentationEditorProps) => {
+  const {
+    rawAIResponse,
+    selectedFormat,
+    isGenerating,
+    setFormat,
+    setFormattedOutput,
+    canUndo,
+    canRedo,
+    pendingRestore,
+    undo,
+    redo,
+    clearPendingRestore,
+  } = useDocumentationStore();
 
   const [editedContent, setEditedContent] = useState('');
   const [copied, setCopied] = useState(false);
+  const [improveModalOpen, setImproveModalOpen] = useState(false);
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (rawAIResponse) {
@@ -30,6 +47,15 @@ export const DocumentationEditor = ({ onRegenerate }: DocumentationEditorProps) 
       setFormattedOutput(formatted);
     }
   }, [rawAIResponse, selectedFormat, setFormattedOutput]);
+
+  // Apply undo/redo restore
+  useEffect(() => {
+    if (pendingRestore !== null) {
+      setEditedContent(pendingRestore);
+      setFormattedOutput(pendingRestore);
+      clearPendingRestore();
+    }
+  }, [pendingRestore, setFormattedOutput, clearPendingRestore]);
 
   const handleFormatChange = (format: string) => {
     const f = format as OutputFormat;
@@ -62,6 +88,8 @@ export const DocumentationEditor = ({ onRegenerate }: DocumentationEditorProps) 
     }
   };
 
+  const isHtmlTab = selectedFormat === 'html';
+
   if (!rawAIResponse && !isGenerating) return null;
 
   return (
@@ -69,6 +97,40 @@ export const DocumentationEditor = ({ onRegenerate }: DocumentationEditorProps) 
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <h3 className="text-sm font-semibold text-slate-700">Generated Documentation</h3>
         <div className="flex items-center gap-2">
+          {/* Undo / Redo */}
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+            aria-label="Undo"
+            title="Undo"
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+            aria-label="Redo"
+            title="Redo"
+          >
+            <Redo2 className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Improve Doc button — disabled on HTML tab */}
+          {!isHtmlTab && (
+            <button
+              onClick={() => setImproveModalOpen(true)}
+              disabled={isGenerating || !editedContent}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+              aria-label="Improve document with AI"
+              title={isHtmlTab ? 'Not available in HTML preview' : 'Improve document with AI'}
+            >
+              <Wand2 className="h-3.5 w-3.5 text-indigo-500" />
+              Improve
+            </button>
+          )}
+
           {onRegenerate && (
             <button
               onClick={onRegenerate}
@@ -126,6 +188,7 @@ export const DocumentationEditor = ({ onRegenerate }: DocumentationEditorProps) 
               />
             ) : (
               <textarea
+                ref={textareaRef}
                 value={editedContent}
                 onChange={(e) => handleEdit(e.target.value)}
                 className="w-full resize-none rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-64"
@@ -136,6 +199,24 @@ export const DocumentationEditor = ({ onRegenerate }: DocumentationEditorProps) 
           </Tabs.Content>
         ))}
       </Tabs.Root>
+
+      {/* Selection improvement popover — only for non-HTML tabs */}
+      {!isHtmlTab && (
+        <SelectionImprovementPopover
+          textareaRef={textareaRef}
+          content={editedContent}
+          onContentChange={handleEdit}
+        />
+      )}
+
+      {/* Document improvement modal */}
+      <DocumentImprovementModal
+        open={improveModalOpen}
+        onOpenChange={setImproveModalOpen}
+        content={editedContent}
+        onContentChange={handleEdit}
+        outputLanguage={outputLanguage}
+      />
     </div>
   );
 };

@@ -1,4 +1,6 @@
 import type { LanguageCode, LanguagePair } from '@/types/language';
+import { DOC_TEMPLATES, DEFAULT_TEMPLATE_ID } from './doc-templates';
+import type { TemplateId } from './doc-templates';
 
 // ---------------------------------------------------------------------------
 // FULL PROMPTS — for external API (large context, 8k–128k tokens)
@@ -466,13 +468,25 @@ export const COMPACT_PROMPTS: Record<LanguagePair, string> = {
 };
 
 /** Full prompt for external API backends (large context window). */
-export const buildSystemPrompt = (speaking: LanguageCode, output: LanguageCode): string => {
+export const buildSystemPrompt = (
+  speaking: LanguageCode,
+  output: LanguageCode,
+  templateId: TemplateId = DEFAULT_TEMPLATE_ID,
+): string => {
   const key: LanguagePair = `${speaking}→${output}`;
-  return SYSTEM_PROMPTS[key] ?? SYSTEM_PROMPTS['en→en'];
+  const base = SYSTEM_PROMPTS[key] ?? SYSTEM_PROMPTS['en→en'];
+  const modifier = DOC_TEMPLATES[templateId].promptModifier;
+  return modifier ? base + modifier : base;
 };
 
 /** Compact prompt for Gemini Nano (on-device, small context window). */
-export const buildCompactPrompt = (speaking: LanguageCode, output: LanguageCode): string => {
+export const buildCompactPrompt = (
+  speaking: LanguageCode,
+  output: LanguageCode,
+  templateId: TemplateId = DEFAULT_TEMPLATE_ID,
+): string => {
   const key: LanguagePair = `${speaking}→${output}`;
-  return COMPACT_PROMPTS[key] ?? COMPACT_PROMPTS['en→en'];
+  const base = COMPACT_PROMPTS[key] ?? COMPACT_PROMPTS['en→en'];
+  const modifier = DOC_TEMPLATES[templateId].promptModifier;
+  return modifier ? base + modifier : base;
 };

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useLanguageStore } from './useLanguageStore';
 import { useDocumentationStore } from './useDocumentationStore';
+import { useTemplateStore } from './useTemplateStore';
 import { generateDocumentation } from '@/features/ai-integration/ai-manager.service';
 import { sessionRepository } from '@/utils/repositories';
 import { AINotConfiguredError } from '@/types/ai';
@@ -18,6 +19,7 @@ export const useAISession = () => {
   const { speakingLanguage, outputLanguage } = useLanguageStore();
   const { selectedFormat, appendRawResponse, setGenerating, setError, reset } =
     useDocumentationStore();
+  const { selectedTemplateId } = useTemplateStore();
 
   // Track whether a generation was aborted so we skip the save step
   const abortedRef = useRef(false);
@@ -35,6 +37,7 @@ export const useAISession = () => {
           transcription,
           speakingLanguage,
           outputLanguage,
+          selectedTemplateId,
         )) {
           if (abortedRef.current) break;
           backend = b as 'gemini-nano' | 'external-api';
@@ -63,7 +66,7 @@ export const useAISession = () => {
         setGenerating(false);
       }
     },
-    [speakingLanguage, outputLanguage, selectedFormat, appendRawResponse, reset, setGenerating, setError],
+    [speakingLanguage, outputLanguage, selectedFormat, selectedTemplateId, appendRawResponse, reset, setGenerating, setError],
   );
 
   const abort = useCallback(() => {

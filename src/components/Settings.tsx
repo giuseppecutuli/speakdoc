@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { Settings2, X, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react';
+import { Settings2, X, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Download, Loader2, Trash2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { loadAIConfig, saveAIConfig } from '@/features/ai-integration/external-api.service';
 import { isGeminiNanoAvailable } from '@/features/ai-integration/gemini-nano.service';
@@ -9,6 +9,7 @@ import { STORAGE_KEYS } from '@/constants/config';
 import { WHISPER_MODELS, DEFAULT_WHISPER_MODEL_SIZE, type WhisperModelSize } from '@/constants/whisper-config';
 import { WhisperService } from '@/features/voice-input/whisper.service';
 import type { SpeechProviderName } from '@/features/voice-input/types/speech-provider';
+import { sessionRepository, feedbackRepository } from '@/utils/repositories';
 
 type SpeechPreference = 'auto' | SpeechProviderName;
 
@@ -254,6 +255,7 @@ export const SettingsPanel = () => {
   const [activeBackend, setActiveBackend] = useState<AIBackend>('none');
   const [saved, setSaved] = useState(false);
   const [speechPreference, setSpeechPreference] = useState<SpeechPreference>(loadSpeechPreference);
+  const [clearState, setClearState] = useState<'idle' | 'clearing' | 'cleared'>('idle');
 
   useEffect(() => {
     if (open) {
@@ -277,6 +279,29 @@ export const SettingsPanel = () => {
     saveAIConfig({ apiEndpoint: endpoint, apiKey, model });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleExportData = async () => {
+    const sessions = await sessionRepository.getAll();
+    const payload = { sessions, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `speak-doc-data-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearData = async () => {
+    setClearState('clearing');
+    try {
+      await Promise.all([sessionRepository.clear(), feedbackRepository.clear()]);
+      setClearState('cleared');
+      setTimeout(() => setClearState('idle'), 2000);
+    } catch {
+      setClearState('idle');
+    }
   };
 
   return (
@@ -384,6 +409,34 @@ export const SettingsPanel = () => {
                 </div>
               </div>
             </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-slate-700">Data Management</h4>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExportData}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                    aria-label="Export learning data"
+                    data-testid="export-data"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export Data
+                  </button>
+                  <button
+                    onClick={handleClearData}
+                    disabled={clearState === 'clearing'}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    aria-label="Clear all data"
+                    data-testid="clear-data"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {clearState === 'clearing' ? 'Clearing…' : clearState === 'cleared' ? 'Cleared!' : 'Clear All Data'}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Sessions older than 90 days are removed automatically.
+                </p>
+              </div>
 
             <div className="mt-6">
               <button

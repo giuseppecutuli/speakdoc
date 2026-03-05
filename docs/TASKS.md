@@ -327,90 +327,90 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 ## Phase 4 — Learning & Suggestions (Week 4-5)
 
 ### 4.1 Database Setup
-- [ ] `src/features/learning/storage.service.ts` — Dexie.js DB definition
-- [ ] DB schema: `sessions` table, `feedback` table
-- [ ] `src/utils/db.ts` — Singleton DB instance
-- [ ] Unit tests: CRUD operations, schema validation
+- [x] `src/features/learning/storage.service.ts` — Dexie.js DB definition
+- [x] DB schema: `sessions` table, `feedback` table
+- [x] `src/utils/db.ts` — Singleton DB instance
+- [x] Unit tests: CRUD operations, schema validation
 
 **Agent:** `learning-engine-dev`
 
 ### 4.2 Session Persistence
-- [ ] Auto-save session to IndexedDB after each completed documentation
-- [ ] Include: language pair, format used, transcription length, AI backend, timestamp
-- [ ] Unit tests: save + retrieve
+- [x] Auto-save session to IndexedDB after each completed documentation
+- [x] Include: language pair, format used, transcription length, AI backend, timestamp
+- [x] Unit tests: save + retrieve
 
 **Agent:** `learning-engine-dev`
 
 ### 4.3 Learning Engine
-- [ ] `src/features/learning/learning-engine.service.ts`
+- [x] `src/features/learning/learning-engine.service.ts`
   - Analyze sessions: most used format, most used language pair
   - Detect patterns: preferred documentation structure
-- [ ] `src/features/learning/suggestions-engine.service.ts`
+- [x] `src/features/learning/suggestions-engine.service.ts`
   - Generate 3 suggestions in output language after 5+ sessions
   - Simple heuristics-based (no additional AI call needed)
-- [ ] Unit tests: pattern detection, suggestion generation
+- [x] Unit tests: pattern detection, suggestion generation
 
 **Agent:** `learning-engine-dev`
 
 ### 4.4 Suggestions UI
-- [ ] `src/features/learning/LearningPanel.tsx` — Shows suggestions, feedback buttons
-- [ ] Feedback stored in DB (helpful / not helpful)
-- [ ] Integration test: complete 5 sessions → suggestions appear → feedback stored
+- [x] `src/features/learning/LearningPanel.tsx` — Shows suggestions, feedback buttons
+- [x] Feedback stored in DB (helpful / not helpful)
+- [x] Integration test: complete 5 sessions → suggestions appear → feedback stored
 
 **Agent:** `learning-engine-dev`
 
 ### 4.5 Data Management
-- [ ] Export learning data as JSON
-- [ ] Clear all data option
-- [ ] Data cleanup for records older than 90 days
+- [x] Export learning data as JSON
+- [x] Clear all data option
+- [x] Data cleanup for records older than 90 days
 
 **Agent:** `learning-engine-dev`
 
 ### 4.6 Audio Export
-- [ ] `src/features/export/audio-export.service.ts` — `downloadAudioBlob(blob: Blob, filename: string): void` using `URL.createObjectURL` + programmatic `<a>` click
-- [ ] Add "Download Recording" button to `src/features/export/ExportPanel.tsx` (visible only when `audioBlob` is non-null)
-- [ ] Filename format: `recording-{YYYY-MM-DD-HHmm}.webm`
-- [ ] Unit tests: URL creation, filename generation, null guard
+- [x] `src/features/export/audio-export.service.ts` — `downloadAudioBlob(blob: Blob, filename: string): void` using `URL.createObjectURL` + programmatic `<a>` click
+- [x] Add "Download Recording" button to `src/features/export/ExportPanel.tsx` (visible only when `audioBlob` is non-null)
+- [x] Filename format: `recording-{YYYY-MM-DD-HHmm}.webm`
+- [x] Unit tests: URL creation, filename generation, null guard
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 4.7 Audio File Import (Whisper only)
-- [ ] `src/features/voice-input/AudioFileImporter.tsx` — file input (`accept="audio/*"`, max 50 MB)
-- [ ] Validate file size; show user-friendly error if > 50 MB
-- [ ] Guard: only enabled when active speech provider is Whisper; show tooltip "Switch to Whisper provider in Settings to use this feature" otherwise
-- [ ] On file select: pass `File` blob to `WhisperProvider` transcription flow (same path as live recording)
-- [ ] Unit tests: file size validation, provider guard, transcription trigger
+- [x] `src/features/voice-input/AudioFileImporter.tsx` — file input (`accept="audio/*"`, max 50 MB)
+- [x] Validate file size; show user-friendly error if > 50 MB
+- [x] Guard: only enabled when active speech provider is Whisper; show tooltip "Switch to Whisper provider in Settings to use this feature" otherwise
+- [x] On file select: pass `File` blob to `WhisperProvider` transcription flow (same path as live recording)
+- [x] Unit tests: file size validation, provider guard, transcription trigger
 
 **Agent:** `frontend-dev` + `ai-integration-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
 
 ### 4.8 Documentation Templates
-- [ ] `src/constants/doc-templates.ts` — 5 templates: `generic`, `meeting-notes`, `tech-spec`, `adr`, `bug-report`; each has `id`, `label`, `promptModifier` (string appended to base system prompt)
-- [ ] `src/features/documentation-generation/TemplateSelector.tsx` — dropdown UI, defaults to `generic`
-- [ ] Update `buildSystemPrompt` and `buildCompactPrompt` in `src/constants/prompts.ts` to accept optional `templateId` param; append `promptModifier` when non-generic
-- [ ] Persist selected template to localStorage via `STORAGE_KEYS.DOC_TEMPLATE`
-- [ ] Add `DOC_TEMPLATE` key to `src/constants/config.ts` STORAGE_KEYS
-- [ ] Unit tests: prompt composition per template (all 5 × 4 language pairs = 20 cases), localStorage persistence
+- [x] `src/constants/doc-templates.ts` — 5 templates: `generic`, `meeting-notes`, `tech-spec`, `adr`, `bug-report`; each has `id`, `label`, `promptModifier` (string appended to base system prompt)
+- [x] `src/features/documentation-generation/TemplateSelector.tsx` — dropdown UI, defaults to `generic`
+- [x] Update `buildSystemPrompt` and `buildCompactPrompt` in `src/constants/prompts.ts` to accept optional `templateId` param; append `promptModifier` when non-generic
+- [x] Persist selected template to localStorage via `STORAGE_KEYS.DOC_TEMPLATE`
+- [x] Add `DOC_TEMPLATE` key to `src/constants/config.ts` STORAGE_KEYS
+- [x] Unit tests: prompt composition per template (all 5 × 4 language pairs = 20 cases), localStorage persistence
 
 **Agent:** `frontend-dev` + `ai-integration-dev` | **Complexity:** MEDIUM | **Risk:** LOW
 
 ### 4.9 Session History Browser
-- [ ] `src/features/learning/SessionHistory.tsx` — list of past sessions with: date, language pair, template used, AI backend, truncated transcription preview
-- [ ] Actions per session: view full doc, copy to clipboard, re-export in different format
-- [ ] Integrate with `sessionRepository.getRecent(50)` from Phase 4.2
-- [ ] Unit tests: session list rendering, action callbacks
+- [x] `src/features/learning/SessionHistory.tsx` — list of past sessions with: date, language pair, template used, AI backend, truncated transcription preview
+- [x] Actions per session: view full doc, copy to clipboard, re-export in different format
+- [x] Integrate with `sessionRepository.getRecent(50)` from Phase 4.2
+- [x] Unit tests: session list rendering, action callbacks
 
 **Agent:** `learning-engine-dev` | **Complexity:** MEDIUM | **Risk:** LOW
 
 ### Phase 4 Exit Criteria
-- [ ] Sessions stored automatically
-- [ ] Suggestions appear after 5 sessions
-- [ ] Suggestions are in the output language
-- [ ] User can export/clear data
-- [ ] Audio playback available after recording, download button in ExportPanel
-- [ ] Audio file import works end-to-end with Whisper; graceful error for Web Speech users
-- [ ] All 5 documentation templates produce distinct AI prompts
-- [ ] Session history browser shows past sessions with re-export capability
-- [ ] All tests pass, coverage ≥ 80%
+- [x] Sessions stored automatically
+- [x] Suggestions appear after 5 sessions
+- [x] Suggestions are in the output language
+- [x] User can export/clear data
+- [x] Audio playback available after recording, download button in ExportPanel
+- [x] Audio file import works end-to-end with Whisper; graceful error for Web Speech users
+- [x] All 5 documentation templates produce distinct AI prompts
+- [x] Session history browser shows past sessions with re-export capability
+- [x] All tests pass, coverage ≥ 80%
 
 ---
 
@@ -478,7 +478,7 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 | Phase 1b | ✅ Complete | WhisperProvider, WhisperService, WhisperModelCache, Settings UI — 40 new tests added, 161 total tests passing |
 | Phase 2 | ✅ Complete | AIProvider, useAISession, gemini-nano tests — 98 tests passing |
 | Phase 3 | ✅ Complete | Formatters, DocumentationEditor, ExportPanel, audio playback — 163 tests passing |
-| Phase 4 | 🔲 Not started | Database setup, session persistence, learning engine, audio export/import, doc templates, session history |
+| Phase 4 | ✅ Complete | LearningPanel, SessionHistory, AudioFileImporter, TemplateSelector, audio-export, data-management — 186 tests passing |
 | Phase 5 | 🔲 Not started | Layout, polish, E2E tests, accessibility |
 
 ---

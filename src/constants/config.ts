@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   MODEL: 'speak-doc:model',
   SPEECH_PROVIDER: 'speak-doc:speech-provider',
   WHISPER_MODEL_SIZE: 'speak-doc:whisper-model-size',
+  DOC_TEMPLATE: 'speak-doc:doc-template',
 } as const;
 
 export const MIN_SESSIONS_FOR_SUGGESTIONS = 5;

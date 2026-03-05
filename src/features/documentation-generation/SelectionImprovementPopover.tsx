@@ -20,7 +20,7 @@ const MIN_SELECTION_LENGTH = 3;
 const MAX_INSTRUCTION_LENGTH = 500;
 
 export const SelectionImprovementPopover = ({ textareaRef, content, onContentChange }: Props) => {
-  const { pushHistory, setFormattedOutput, selectedFormat, isGenerating } = useDocumentationStore();
+  const { pushHistory, setFormattedOutput, isGenerating } = useDocumentationStore();
 
   const [anchor, setAnchor] = useState<SelectionAnchor | null>(null);
   const [instruction, setInstruction] = useState('');

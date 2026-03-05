@@ -307,12 +307,20 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 
 **Agent:** `frontend-dev`
 
+### 3.4 Audio Playback
+- [ ] Add `<audio>` element to `src/features/voice-input/VoiceRecorder.tsx` shown when `audioBlob` is available after recording stops
+- [ ] Controls only visible in `done` status (not during recording)
+- [ ] Unit tests: playback element renders after stop, hidden during recording
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
 ### Phase 3 Exit Criteria
 - [x] All 3 formats produce correct output
 - [x] Confluence wiki markup is valid and paste-ready
 - [x] Copy to clipboard works
 - [x] User can edit before copying
 - [x] All tests pass (121 tests), coverage ≥ 80%
+- [ ] Audio playback available after recording stops
 
 ---
 
@@ -358,11 +366,50 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 
 **Agent:** `learning-engine-dev`
 
+### 4.6 Audio Export
+- [ ] `src/features/export/audio-export.service.ts` — `downloadAudioBlob(blob: Blob, filename: string): void` using `URL.createObjectURL` + programmatic `<a>` click
+- [ ] Add "Download Recording" button to `src/features/export/ExportPanel.tsx` (visible only when `audioBlob` is non-null)
+- [ ] Filename format: `recording-{YYYY-MM-DD-HHmm}.webm`
+- [ ] Unit tests: URL creation, filename generation, null guard
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 4.7 Audio File Import (Whisper only)
+- [ ] `src/features/voice-input/AudioFileImporter.tsx` — file input (`accept="audio/*"`, max 50 MB)
+- [ ] Validate file size; show user-friendly error if > 50 MB
+- [ ] Guard: only enabled when active speech provider is Whisper; show tooltip "Switch to Whisper provider in Settings to use this feature" otherwise
+- [ ] On file select: pass `File` blob to `WhisperProvider` transcription flow (same path as live recording)
+- [ ] Unit tests: file size validation, provider guard, transcription trigger
+
+**Agent:** `frontend-dev` + `ai-integration-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
+
+### 4.8 Documentation Templates
+- [ ] `src/constants/doc-templates.ts` — 5 templates: `generic`, `meeting-notes`, `tech-spec`, `adr`, `bug-report`; each has `id`, `label`, `promptModifier` (string appended to base system prompt)
+- [ ] `src/features/documentation-generation/TemplateSelector.tsx` — dropdown UI, defaults to `generic`
+- [ ] Update `buildSystemPrompt` and `buildCompactPrompt` in `src/constants/prompts.ts` to accept optional `templateId` param; append `promptModifier` when non-generic
+- [ ] Persist selected template to localStorage via `STORAGE_KEYS.DOC_TEMPLATE`
+- [ ] Add `DOC_TEMPLATE` key to `src/constants/config.ts` STORAGE_KEYS
+- [ ] Unit tests: prompt composition per template (all 5 × 4 language pairs = 20 cases), localStorage persistence
+
+**Agent:** `frontend-dev` + `ai-integration-dev` | **Complexity:** MEDIUM | **Risk:** LOW
+
+### 4.9 Session History Browser
+- [ ] `src/features/learning/SessionHistory.tsx` — list of past sessions with: date, language pair, template used, AI backend, truncated transcription preview
+- [ ] Actions per session: view full doc, copy to clipboard, re-export in different format
+- [ ] Integrate with `sessionRepository.getRecent(50)` from Phase 4.2
+- [ ] Unit tests: session list rendering, action callbacks
+
+**Agent:** `learning-engine-dev` | **Complexity:** MEDIUM | **Risk:** LOW
+
 ### Phase 4 Exit Criteria
 - [ ] Sessions stored automatically
 - [ ] Suggestions appear after 5 sessions
 - [ ] Suggestions are in the output language
 - [ ] User can export/clear data
+- [ ] Audio playback available after recording, download button in ExportPanel
+- [ ] Audio file import works end-to-end with Whisper; graceful error for Web Speech users
+- [ ] All 5 documentation templates produce distinct AI prompts
+- [ ] Session history browser shows past sessions with re-export capability
 - [ ] All tests pass, coverage ≥ 80%
 
 ---
@@ -431,7 +478,7 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 | Phase 1b | ✅ Complete | WhisperProvider, WhisperService, WhisperModelCache, Settings UI — 40 new tests added, 161 total tests passing |
 | Phase 2 | ✅ Complete | AIProvider, useAISession, gemini-nano tests — 98 tests passing |
 | Phase 3 | ✅ Complete | Formatters, DocumentationEditor, ExportPanel, doc-generator tests — 121 tests passing |
-| Phase 4 | 🔲 Not started | Database setup, session persistence, learning engine |
+| Phase 4 | 🔲 Not started | Database setup, session persistence, learning engine, audio export/import, doc templates, session history |
 | Phase 5 | 🔲 Not started | Layout, polish, E2E tests, accessibility |
 
 ---
@@ -440,6 +487,6 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 
 | Agent | Phases | Primary Responsibility |
 |---|---|---|
-| `frontend-dev` | 1, 1a, 1b, 3, 5 | Language selection, voice recording, speech providers, formatters, UI |
-| `ai-integration-dev` | 1b, 2, 5 | Gemini Nano, external API, Whisper WASM, prompt engineering |
-| `learning-engine-dev` | 1b, 4 | IndexedDB, Dexie.js, Whisper model cache, pattern analysis |
+| `frontend-dev` | 1, 1a, 1b, 3, 4, 5 | Language selection, voice recording, speech providers, formatters, audio playback/export/import, template selector, UI |
+| `ai-integration-dev` | 1b, 2, 4, 5 | Gemini Nano, external API, Whisper WASM, prompt engineering, template prompt modifiers |
+| `learning-engine-dev` | 1b, 4 | IndexedDB, Dexie.js, Whisper model cache, pattern analysis, session history |

@@ -308,9 +308,9 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 **Agent:** `frontend-dev`
 
 ### 3.4 Audio Playback
-- [ ] Add `<audio>` element to `src/features/voice-input/VoiceRecorder.tsx` shown when `audioBlob` is available after recording stops
-- [ ] Controls only visible in `done` status (not during recording)
-- [ ] Unit tests: playback element renders after stop, hidden during recording
+- [x] Add `<audio>` element to `src/features/voice-input/VoiceRecorder.tsx` shown when `audioBlob` is available after recording stops
+- [x] Controls only visible in `done` status (not during recording)
+- [x] Unit tests: `src/utils/audio-url.ts` — createAudioUrl/revokeAudioUrl (2 tests); component tests skipped per MVP policy
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
@@ -320,7 +320,7 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 - [x] Copy to clipboard works
 - [x] User can edit before copying
 - [x] All tests pass (121 tests), coverage ≥ 80%
-- [ ] Audio playback available after recording stops
+- [x] Audio playback available after recording stops
 
 ---
 
@@ -477,7 +477,7 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 | Phase 1a | ✅ Complete | ISpeechProvider, WebSpeechProvider, SpeechProviderManager, language-utils — 87 tests passing |
 | Phase 1b | ✅ Complete | WhisperProvider, WhisperService, WhisperModelCache, Settings UI — 40 new tests added, 161 total tests passing |
 | Phase 2 | ✅ Complete | AIProvider, useAISession, gemini-nano tests — 98 tests passing |
-| Phase 3 | ✅ Complete | Formatters, DocumentationEditor, ExportPanel, doc-generator tests — 121 tests passing |
+| Phase 3 | ✅ Complete | Formatters, DocumentationEditor, ExportPanel, audio playback — 163 tests passing |
 | Phase 4 | 🔲 Not started | Database setup, session persistence, learning engine, audio export/import, doc templates, session history |
 | Phase 5 | 🔲 Not started | Layout, polish, E2E tests, accessibility |
 

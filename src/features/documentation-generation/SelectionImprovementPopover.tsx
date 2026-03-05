@@ -95,7 +95,6 @@ export const SelectionImprovementPopover = ({ textareaRef, content, onContentCha
     if (!anchor || !instruction.trim() || isImproving || isGenerating) return;
 
     const selectedText = content.slice(anchor.start, anchor.end);
-    const outputLang = selectedFormat === 'markdown' ? 'en' : 'en'; // derive from store lang if available
     const storeState = useDocumentationStore.getState();
     const lang = (storeState as { outputLanguage?: string }).outputLanguage ?? 'en';
 

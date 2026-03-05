@@ -505,6 +505,95 @@ interface WhisperModelRecord {
 
 ---
 
+## AI Inline Editing
+
+### Overview
+
+Extends the `DocumentationEditor` with the ability to improve selected text (or the full document) via an AI prompt, and tracks edit history for undo/redo.
+
+### Components
+
+```
+src/features/documentation-generation/
+  ├── inline-improvement.service.ts     — improveSelection() + improveDocument() generators
+  ├── SelectionImprovementPopover.tsx   — floating toolbar shown on textarea selection
+  └── DocumentImprovementModal.tsx      — modal for whole-document improvement
+
+src/constants/
+  └── improvement-prompts.ts            — buildSelectionImprovementPrompt() + buildDocumentImprovementPrompt()
+
+src/hooks/
+  └── useDocumentationStore.ts          — extended with history[], historyIndex, undo(), redo(), pushHistory()
+```
+
+### Inline Selection Flow
+
+```
+User selects text in textarea (Markdown or Wiki tab)
+    ↓
+onSelect → read selectionStart / selectionEnd
+    ↓
+SelectionImprovementPopover appears (position: fixed, above selection)
+    ↓
+User types instruction → submits
+    ↓
+pushHistory(currentContent)          ← snapshot before edit
+improveSelection(selectedText, instruction, outputLang)
+    ↓
+Stream result → replace [selectionStart, selectionEnd] range inline
+    ↓
+"Undo" button enabled in toolbar
+```
+
+### Whole-Document Flow
+
+```
+User clicks "Improve Doc" in toolbar
+    ↓
+DocumentImprovementModal opens
+    ↓
+User types instruction → submits
+    ↓
+pushHistory(currentContent)
+improveDocument(fullContent, instruction, outputLang)
+    ↓
+Stream result → replace full editor content
+    ↓
+"Undo" button enabled
+```
+
+### Improvement Prompts Strategy
+
+- **Selection scope**: System prompt instructs AI to rewrite ONLY the provided excerpt and return ONLY the rewritten text (no preamble, no explanation). Context is minimal to stay within Gemini Nano's token budget.
+- **Document scope**: System prompt instructs AI to improve the entire document per the instruction and return ONLY the improved document.
+- Both use the same two-tier approach (compact prompt for Gemini Nano, full prompt for external API) as the main generation prompts.
+
+### Revision History
+
+```typescript
+// useDocumentationStore.ts additions
+history: string[];          // past snapshots, max 20 entries
+historyIndex: number;       // current position in history
+pushHistory(content): void  // snapshot before AI edit; trims to 20
+undo(): void                // restore history[historyIndex - 1]
+redo(): void                // restore history[historyIndex + 1]
+canUndo: boolean            // historyIndex > 0
+canRedo: boolean            // historyIndex < history.length - 1
+```
+
+History is **session-scoped** (in-memory only). It resets on `reset()` and is not persisted to IndexedDB.
+
+### Constraints
+
+| Constraint | Reason |
+|---|---|
+| HTML Preview tab: inline editing disabled | `dangerouslySetInnerHTML` has no selection API; read-only is acceptable |
+| Instruction max 500 chars | Keeps token budget predictable for Gemini Nano |
+| History cap at 20 snapshots | Prevents unbounded memory use; each snapshot is a plain string |
+| Popover dismissed on scroll / Escape | Prevents stale position after scroll |
+
+---
+
 ## Output Formatters
 
 All formatters receive the raw AI response (English Markdown-ish text) and transform it.

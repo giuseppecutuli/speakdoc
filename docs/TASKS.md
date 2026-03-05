@@ -414,6 +414,154 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 
 ---
 
+## Phase 4.10 — Revision History (Undo/Redo)
+
+_Prerequisite for Phase 4.11–4.13. No new files — extends existing store and editor._
+
+### 4.10.1 Extend `useDocumentationStore`
+- [ ] Add `history: string[]`, `historyIndex: number` to state (initial: `[]`, `-1`)
+- [ ] Add `pushHistory(content: string): void` — prepend snapshot; cap at 20; reset redo tail
+- [ ] Add `undo(): void` — decrement `historyIndex`, restore content
+- [ ] Add `redo(): void` — increment `historyIndex`, restore content
+- [ ] Add derived `canUndo: boolean`, `canRedo: boolean`
+- [ ] Reset history on existing `reset()` action
+- [ ] Unit tests: pushHistory cap, undo/redo navigation, edge cases (empty, at bounds) — 8 tests
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 4.10.2 Undo/Redo UI in `DocumentationEditor`
+- [ ] Add `Undo` / `Redo` icon buttons to the editor toolbar header
+- [ ] Buttons disabled when `!canUndo` / `!canRedo`
+- [ ] Clicking Undo/Redo updates `editedContent` local state from store
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### Phase 4.10 Exit Criteria
+- [ ] `pushHistory` snapshots content before AI edits
+- [ ] `undo()` / `redo()` navigate history correctly
+- [ ] History resets on document reset
+- [ ] Undo/Redo buttons appear and are correctly enabled/disabled
+- [ ] All tests pass; coverage ≥ 80%
+
+---
+
+## Phase 4.11 — Improvement Prompts
+
+### 4.11.1 `src/constants/improvement-prompts.ts`
+- [ ] `buildSelectionImprovementPrompt(instruction, selectedText, outputLanguage)` → `{ system, user }`
+- [ ] `buildDocumentImprovementPrompt(instruction, fullContent, outputLanguage)` → `{ system, user }`
+- [ ] System prompt for selection: "Rewrite ONLY the provided excerpt per the instruction. Return ONLY the rewritten text."
+- [ ] System prompt for document: "Improve the entire document per the instruction. Return ONLY the improved document."
+- [ ] Unit tests: 2 scopes × 2 languages = 4 test cases + instruction injection checks — 8 tests
+
+**Agent:** `ai-integration-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### Phase 4.11 Exit Criteria
+- [ ] Both prompt builders produce correct system/user message pairs
+- [ ] Output language is correctly embedded in prompts
+- [ ] Instruction is safely interpolated (no injection risk)
+
+---
+
+## Phase 4.12 — Inline Improvement Service
+
+### 4.12.1 `src/features/documentation-generation/inline-improvement.service.ts`
+- [ ] `improveSelection(selectedText, instruction, outputLanguage): AsyncGenerator<string>` — calls AI manager with selection prompt
+- [ ] `improveDocument(fullContent, instruction, outputLanguage): AsyncGenerator<string>` — calls AI manager with document prompt
+- [ ] Reuses existing `AIManager` (Gemini Nano → external API fallback)
+- [ ] Throws `AINotConfiguredError` if no backend available
+- [ ] Unit tests: mocked AI manager, selection replacement, full doc replacement, error propagation — 6 tests
+
+**Agent:** `ai-integration-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### Phase 4.12 Exit Criteria
+- [ ] Both generators stream correctly through AI manager
+- [ ] Error propagation works (AINotConfiguredError bubbles up)
+- [ ] Tests pass with mocked AI manager
+
+---
+
+## Phase 4.13 — AI Inline Editing UI
+
+### 4.13.1 `SelectionImprovementPopover.tsx`
+- [ ] Detects textarea selection via `onSelect` → reads `selectionStart` / `selectionEnd`
+- [ ] Hides when selection is empty or length < 3 chars
+- [ ] Positions popover using `getBoundingClientRect()` on the textarea; `position: fixed`
+- [ ] Dismissed on `Escape`, click-outside, or scroll
+- [ ] Contains: instruction `<input>` (max 500 chars) + "Improve" submit button + loading spinner
+- [ ] On submit: calls `pushHistory()` → streams `improveSelection()` → replaces `[start, end]` in content
+- [ ] Unit tests: show/hide on selection, instruction validation, replacement logic — 5 tests
+
+**Agent:** `frontend-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
+
+### 4.13.2 `DocumentImprovementModal.tsx`
+- [ ] Radix Dialog modal (consistent with Settings)
+- [ ] Instruction textarea (max 500 chars, shows char count)
+- [ ] Submit → `pushHistory()` → streams `improveDocument()` → replaces full editor content
+- [ ] Shows streaming progress (spinner + partial text update in editor)
+- [ ] Disabled when `isGenerating` is true
+- [ ] Unit tests: open/close, instruction validation, submit flow — 3 tests
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 4.13.3 Wire into `DocumentationEditor.tsx`
+- [ ] Add `SelectionImprovementPopover` rendered outside textarea (portal or sibling)
+- [ ] Add "Improve Doc" button to toolbar → opens `DocumentImprovementModal`
+- [ ] HTML tab: disable inline editing UI, show tooltip "Switch to Markdown or Wiki tab to use AI editing"
+- [ ] All AI editing blocked while `isGenerating` is true
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### Phase 4.13 Exit Criteria
+- [ ] Selecting text in Markdown/Wiki tab shows popover
+- [ ] Entering instruction + submitting replaces only selected text
+- [ ] "Improve Doc" button opens modal, full doc is replaced on submit
+- [ ] HTML tab shows disabled state with tooltip
+- [ ] Undo button enabled after each AI edit
+- [ ] All tests pass; total coverage ≥ 80%
+
+---
+
+## Phase 4.14 — Pre-Phase 5 Refactoring
+
+_Refactor `Settings.tsx` (455 lines, exceeds 400-line guideline) by extracting its sub-components into focused files. Other components are within bounds: `VoiceRecorder.tsx` (250 lines), `SessionHistory.tsx` (131 lines), `DocumentationEditor.tsx` will grow slightly with Phase 4.13 additions but remain manageable._
+
+**Why now:** Clean separation of concerns before Phase 5 adds more UI files. Smaller files are easier to maintain and test.
+
+### 4.14.1 Extract `BackendBadge`
+- [ ] Move `BackendBadge` component to `src/features/ai-integration/BackendBadge.tsx`
+- [ ] Export and import in `Settings.tsx`
+- [ ] No logic change, only file split
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 4.14.2 Extract `GeminiNanoGuide`
+- [ ] Move `GeminiNanoGuide` + `FLAG_STEPS` constant to `src/features/ai-integration/GeminiNanoGuide.tsx`
+- [ ] Export and import in `Settings.tsx`
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 4.14.3 Extract `WhisperModelSection`
+- [ ] Move `WhisperModelSection` + its local helpers (`whisperLoadedKey`, `isWhisperModelCached`, `markWhisperModelCached`, `loadWhisperModelSize`, `saveWhisperModelSize`) to `src/features/voice-input/WhisperModelSection.tsx`
+- [ ] Export and import in `Settings.tsx`
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### 4.14.4 Verify `Settings.tsx` reduced to ≤ 200 lines
+- [ ] After extractions, `Settings.tsx` should contain only `SettingsPanel` orchestration logic
+- [ ] Run full test suite — all 186+ tests must still pass (regression check)
+- [ ] `tsc --noEmit` must pass with 0 errors
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+### Phase 4.14 Exit Criteria
+- [ ] `Settings.tsx` ≤ 200 lines
+- [ ] `BackendBadge.tsx`, `GeminiNanoGuide.tsx`, `WhisperModelSection.tsx` each ≤ 120 lines
+- [ ] 0 regressions — all existing tests pass
+- [ ] 0 TypeScript errors
+
+---
+
 ## Phase 5 — Polish & Deploy (Week 5-6)
 
 ### 5.1 Layout & Navigation
@@ -479,6 +627,11 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 | Phase 2 | ✅ Complete | AIProvider, useAISession, gemini-nano tests — 98 tests passing |
 | Phase 3 | ✅ Complete | Formatters, DocumentationEditor, ExportPanel, audio playback — 163 tests passing |
 | Phase 4 | ✅ Complete | LearningPanel, SessionHistory, AudioFileImporter, TemplateSelector, audio-export, data-management — 186 tests passing |
+| Phase 4.10 | 🔲 Not started | Revision history (undo/redo) in useDocumentationStore + editor toolbar |
+| Phase 4.11 | 🔲 Not started | Improvement prompts (selection + document scope) |
+| Phase 4.12 | 🔲 Not started | inline-improvement.service.ts |
+| Phase 4.13 | 🔲 Not started | SelectionImprovementPopover + DocumentImprovementModal + editor wiring |
+| Phase 4.14 | 🔲 Not started | Refactor Settings.tsx → extract BackendBadge, GeminiNanoGuide, WhisperModelSection |
 | Phase 5 | 🔲 Not started | Layout, polish, E2E tests, accessibility |
 
 ---

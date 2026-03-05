@@ -32,8 +32,8 @@ src/
     ai-integration/            ✅ Phase 2
     transcription/             ✅ Phase 1
     documentation-generation/  ✅ Phase 3
-    learning/                  🔲 Phase 4
-    export/                    ✅ Phase 3
+    learning/                  ✅ Phase 4
+    export/                    ✅ Phase 3, 4
   components/  hooks/  types/  constants/  utils/
 docs/PRD.md  ARCHITECTURE.md  TASKS.md
 .claude/agents/  (frontend-dev, ai-integration-dev, learning-engine-dev)
@@ -48,7 +48,7 @@ docs/PRD.md  ARCHITECTURE.md  TASKS.md
 | 1b | ✅ Complete | +40 (161 total) |
 | 2 | ✅ Complete | 98 |
 | 3 | ✅ Complete | 121 |
-| 4 | 🔲 Not started | - |
+| 4 | ✅ Complete | +25 (186 total) |
 | 5 | 🔲 Not started | - |
 
 ## Agents

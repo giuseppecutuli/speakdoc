@@ -12,6 +12,7 @@ interface RecordingState {
 interface RecordingActions {
   setStatus: (status: RecordingStatus) => void;
   appendTranscription: (text: string, isFinal: boolean) => void;
+  setTranscription: (text: string) => void;
   setAudioBlob: (blob: Blob) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -40,6 +41,8 @@ export const useRecordingStore = create<RecordingState & RecordingActions>((set)
       }
       return { interimTranscription: text };
     }),
+
+  setTranscription: (text) => set({ transcription: text, status: 'done' }),
 
   setAudioBlob: (blob) => set({ audioBlob: blob }),
 

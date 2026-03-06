@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Clock, Copy, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Clock, Copy, Download, ChevronDown, ChevronUp, Trash2, RotateCcw, Pencil, Check } from 'lucide-react';
 import { sessionRepository } from '@/utils/repositories';
 import type { DocumentationSession } from '@/types/session';
 import { copyToClipboard, downloadAsFile } from '@/features/export/export.service';
@@ -10,15 +10,31 @@ const formatDate = (date: Date): string =>
   ' ' +
   new Date(date).toLocaleTimeString(undefined, { timeStyle: 'short' });
 
+const formatSize = (text: string): string => {
+  const kb = Math.ceil(new Blob([text]).size / 1024);
+  return `${kb} KB`;
+};
+
 const SESSION_PREVIEW_LENGTH = 120;
 
 interface SessionRowProps {
   session: DocumentationSession;
+  onDelete: (id: number) => void;
+  onRestore: (session: DocumentationSession) => void;
+  onRename: (id: number, name: string) => void;
 }
 
-const SessionRow = ({ session }: SessionRowProps) => {
+const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps) => {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(session.name ?? '');
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isEditingName) nameInputRef.current?.focus();
+  }, [isEditingName]);
 
   const handleCopy = async () => {
     try {
@@ -34,6 +50,27 @@ const SessionRow = ({ session }: SessionRowProps) => {
     downloadAsFile(session.generatedDoc, session.format as OutputFormat);
   };
 
+  const handleSaveName = async () => {
+    const trimmed = nameDraft.trim();
+    await sessionRepository.update(session.id!, { name: trimmed || undefined });
+    onRename(session.id!, trimmed);
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSaveName();
+    if (e.key === 'Escape') { setNameDraft(session.name ?? ''); setIsEditingName(false); }
+  };
+
+  const handleDeleteClick = () => {
+    if (confirmDelete) {
+      onDelete(session.id!);
+    } else {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
+    }
+  };
+
   const preview =
     session.transcription.length > SESSION_PREVIEW_LENGTH
       ? session.transcription.slice(0, SESSION_PREVIEW_LENGTH) + '…'
@@ -44,32 +81,98 @@ const SessionRow = ({ session }: SessionRowProps) => {
       className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm"
       data-testid="session-row"
     >
-      <button
-        className="flex w-full items-start justify-between gap-3 p-3 text-left"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-      >
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{preview}</p>
-          <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span>{formatDate(session.createdAt)}</span>
-            <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 font-mono">
-              {session.speakingLanguage}→{session.outputLanguage}
-            </span>
-            <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 uppercase font-mono">
-              {session.format}
-            </span>
-            <span className="rounded bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 text-indigo-600 dark:text-indigo-400">
-              {session.aiBackend}
-            </span>
+      <div className="flex w-full items-start gap-3 p-3">
+        <div className="min-w-0 flex-1">
+          {isEditingName ? (
+            <div className="flex items-center gap-1 mb-1">
+              <input
+                ref={nameInputRef}
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={handleNameKeyDown}
+                placeholder="Session name…"
+                className="rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48"
+              />
+              <button
+                onClick={handleSaveName}
+                className="rounded p-0.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                aria-label="Save name"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 group">
+              {session.name ? (
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{session.name}</span>
+              ) : null}
+              <button
+                onClick={(e) => { e.stopPropagation(); setNameDraft(session.name ?? ''); setIsEditingName(true); }}
+                className="hidden group-hover:flex items-center gap-0.5 rounded px-1 py-0.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                title="Rename session"
+              >
+                <Pencil className="h-3 w-3" />
+                {!session.name && 'Name'}
+              </button>
+            </div>
+          )}
+          <button
+            className="w-full text-left"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+          >
+          <div className="space-y-0.5">
+            <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-300">{preview}</p>
+            <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <span>{formatDate(session.createdAt)}</span>
+              <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 font-mono">
+                {session.speakingLanguage}→{session.outputLanguage}
+              </span>
+              <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 uppercase font-mono">
+                {session.format}
+              </span>
+              <span className="rounded bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 text-indigo-600 dark:text-indigo-400">
+                {session.aiBackend}
+              </span>
+              <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 font-mono text-slate-500 dark:text-slate-400">
+                {formatSize(session.generatedDoc)}
+              </span>
+            </div>
           </div>
+          </button>
         </div>
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 shrink-0 text-slate-400 mt-0.5" />
-        ) : (
-          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 mt-0.5" />
-        )}
-      </button>
+        <div className="flex shrink-0 items-center gap-1 mt-0.5">
+          <button
+            onClick={() => onRestore(session)}
+            className="rounded p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            aria-label="Restore session"
+            title="Restore this session"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={handleDeleteClick}
+            className={`rounded p-1 transition-colors ${
+              confirmDelete
+                ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30'
+                : 'text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+            aria-label={confirmDelete ? 'Confirm delete' : 'Delete session'}
+            title={confirmDelete ? 'Click again to confirm' : 'Delete session'}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+          {expanded ? (
+            <button onClick={() => setExpanded(false)} aria-label="Collapse">
+              <ChevronUp className="h-4 w-4 text-slate-400" />
+            </button>
+          ) : (
+            <button onClick={() => setExpanded(true)} aria-label="Expand">
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            </button>
+          )}
+        </div>
+      </div>
 
       {expanded && (
         <div className="border-t border-slate-100 dark:border-slate-700 p-3 space-y-3">
@@ -100,7 +203,11 @@ const SessionRow = ({ session }: SessionRowProps) => {
   );
 };
 
-export const SessionHistory = () => {
+interface SessionHistoryProps {
+  onRestore?: (session: DocumentationSession) => void;
+}
+
+export const SessionHistory = ({ onRestore }: SessionHistoryProps) => {
   const [sessions, setSessions] = useState<DocumentationSession[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -113,6 +220,25 @@ export const SessionHistory = () => {
     return () => { cancelled = true; };
   }, []);
 
+  const handleDelete = async (id: number) => {
+    try {
+      await sessionRepository.delete(id);
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      // silent — row stays if delete fails
+    }
+  };
+
+  const handleRename = (id: number, name: string) => {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, name: name || undefined } : s)),
+    );
+  };
+
+  const handleRestore = (session: DocumentationSession) => {
+    onRestore?.(session);
+  };
+
   if (!loaded || sessions.length === 0) return null;
 
   return (
@@ -123,7 +249,13 @@ export const SessionHistory = () => {
       </div>
       <ul className="space-y-2" data-testid="session-history-list">
         {sessions.map((session) => (
-          <SessionRow key={session.id} session={session} />
+          <SessionRow
+            key={session.id}
+            session={session}
+            onDelete={handleDelete}
+            onRestore={handleRestore}
+            onRename={handleRename}
+          />
         ))}
       </ul>
     </div>

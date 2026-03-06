@@ -3,6 +3,7 @@ import type { OutputFormat } from './documentation';
 
 export interface DocumentationSession {
   id?: number;
+  name?: string;
   speakingLanguage: LanguageCode;
   outputLanguage: LanguageCode;
   transcription: string;
@@ -17,4 +18,15 @@ export interface SessionFeedback {
   sessionId: number;
   rating: 'helpful' | 'not-helpful';
   createdAt: Date;
+}
+
+export interface SessionDraft {
+  id?: number;
+  transcription: string;
+  generatedDoc: string;
+  format: string;
+  speakingLanguage: string;
+  outputLanguage: string;
+  audioBlob?: Blob;
+  savedAt: Date;
 }

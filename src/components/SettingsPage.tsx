@@ -83,31 +83,31 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-sm">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <header className="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             aria-label="Back to app"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
-          <h1 className="text-base font-semibold text-slate-900">Settings</h1>
+          <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100">Settings</h1>
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-8 space-y-6">
         {/* Speech Recognition */}
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700">Speech Recognition</h2>
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm space-y-4">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Speech Recognition</h2>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-600">Provider</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Provider</label>
             <select
               value={speechPreference}
               onChange={(e) => handleSpeechPreferenceChange(e.target.value as SpeechPreference)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {PROVIDER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -115,7 +115,7 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               {PROVIDER_OPTIONS.find((o) => o.value === speechPreference)?.description}
             </p>
           </div>
@@ -123,55 +123,55 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
         </section>
 
         {/* AI Backend */}
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700">AI Backend</h2>
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm space-y-4">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">AI Backend</h2>
           <div>
-            <p className="mb-2 text-xs text-slate-500">Currently active backend:</p>
+            <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">Currently active backend:</p>
             <BackendBadge backend={activeBackend} />
           </div>
           <GeminiNanoGuide defaultOpen={activeBackend !== 'gemini-nano'} />
         </section>
 
         {/* External API */}
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700">External API (Fallback)</h2>
-          <p className="text-xs text-slate-500">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm space-y-4">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">External API (Fallback)</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Configure an OpenAI-compatible API. Default: LM Studio on localhost.
           </p>
           <div className="space-y-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-600">API Endpoint</label>
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400">API Endpoint</label>
               <input
                 type="url"
                 value={endpoint}
                 onChange={(e) => setEndpoint(e.target.value)}
                 placeholder="http://localhost:1234/v1"
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-600">API Key (optional)</label>
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400">API Key (optional)</label>
               <input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-..."
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-600">Model</label>
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Model</label>
               <input
                 type="text"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder="local-model"
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
-            <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2">
-              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-              <p className="text-xs text-amber-700">API keys are stored only in your browser's localStorage.</p>
+            <div className="flex items-center gap-2 rounded-md bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <p className="text-xs text-amber-700 dark:text-amber-400">API keys are stored only in your browser's localStorage.</p>
             </div>
           </div>
           <button
@@ -183,12 +183,15 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
         </section>
 
         {/* Data Management */}
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700">Data Management</h2>
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm space-y-4">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Data Management</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Your session history (transcriptions, generated docs, timestamps) is stored locally in your browser's IndexedDB — nothing leaves your device. Exporting downloads a JSON file with all sessions.
+          </p>
           <div className="flex gap-2">
             <button
               onClick={handleExportData}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               aria-label="Export learning data"
               data-testid="export-data"
             >
@@ -198,7 +201,7 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
             <button
               onClick={handleClearData}
               disabled={clearState === 'clearing'}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-red-200 dark:border-red-800 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
               aria-label="Clear all data"
               data-testid="clear-data"
             >
@@ -206,7 +209,7 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
               {clearState === 'clearing' ? 'Clearing…' : clearState === 'cleared' ? 'Cleared!' : 'Clear All Data'}
             </button>
           </div>
-          <p className="text-xs text-slate-400">Sessions older than 90 days are removed automatically.</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Sessions older than 90 days are removed automatically.</p>
         </section>
       </main>
     </div>

@@ -61,7 +61,7 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={transcribing}
-          className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Import audio file"
           data-testid="import-audio-button"
         >

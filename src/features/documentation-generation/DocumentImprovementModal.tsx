@@ -61,11 +61,11 @@ export const DocumentImprovementModal = ({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-6 shadow-xl focus:outline-none"
+          className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-xl focus:outline-none"
           aria-describedby={undefined}
         >
           <div className="flex items-center justify-between mb-4">
-            <Dialog.Title className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <Dialog.Title className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <Wand2 className="h-4 w-4 text-indigo-500" />
               Improve Document
             </Dialog.Title>
@@ -73,7 +73,7 @@ export const DocumentImprovementModal = ({
               <button
                 onClick={handleClose}
                 disabled={isImproving}
-                className="rounded-md p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+                className="rounded-md p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -91,7 +91,7 @@ export const DocumentImprovementModal = ({
               placeholder="e.g. make this more concise and professional"
               rows={3}
               disabled={busy}
-              className="w-full resize-none rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+              className="w-full resize-none rounded-md border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 p-3 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
               aria-label="Improvement instruction"
               autoFocus
             />
@@ -104,7 +104,7 @@ export const DocumentImprovementModal = ({
             <button
               onClick={handleClose}
               disabled={isImproving}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
             >
               Cancel
             </button>

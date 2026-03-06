@@ -9,9 +9,18 @@ No backend. No server. Everything runs in the browser.
 ## What it does
 
 1. **Select languages** — choose your speaking language and the documentation output language independently (English / Italian)
-2. **Record** — speak naturally; live transcription appears in real time via Web Speech API
+2. **Record** — speak naturally; live transcription appears in real time (supports 40+ minute sessions via chunked Whisper processing)
 3. **Generate** — AI produces a structured wiki-style document with functional + technical sections, Mermaid diagrams, action items, and open questions
-4. **Copy** — paste directly into Confluence (wiki markup), Notion (Markdown), or any editor (HTML preview)
+4. **Edit** — select any text in the editor to rewrite it with an inline AI instruction; undo/redo full revision history
+5. **Copy** — paste directly into Confluence (wiki markup), Notion (Markdown), or any editor (HTML preview)
+
+### Additional features
+
+- **Documentation templates** — Generic, Meeting Notes, Tech Spec, ADR, Bug Report
+- **Whisper WASM** — offline, high-accuracy speech-to-text (~95–97%); model cached in IndexedDB
+- **Session history** — past sessions stored in IndexedDB and re-exportable in any format
+- **Dark mode** — toggle in the header, persisted to localStorage
+- **Keyboard shortcuts** — `Space` to start/stop recording, `Ctrl+S` to download
 
 ---
 
@@ -37,14 +46,26 @@ Gemini Nano is tried first; falls back to the configured external API (default: 
 
 ---
 
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Space` | Start / Stop recording |
+| `Ctrl+S` / `Cmd+S` | Download documentation as file |
+| `Esc` | Close modals |
+
+---
+
 ## Stack
 
-- **React 18 + TypeScript + Vite**
+- **React 19 + TypeScript + Vite**
 - **Zustand** — state management
 - **Dexie.js** — IndexedDB session storage
-- **Tailwind CSS + shadcn/ui** — UI
-- **Vitest** — unit tests
+- **Tailwind CSS v4** — UI
+- **Radix UI** — accessible primitives
+- **Vitest** — unit tests (229 tests, 80%+ coverage)
 - **Web Speech API** — live transcription
+- **@xenova/transformers** — Whisper WASM offline transcription
 - **Web Audio API** — waveform visualizer
 
 ---

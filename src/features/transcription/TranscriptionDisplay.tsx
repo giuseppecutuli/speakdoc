@@ -13,10 +13,10 @@ export const TranscriptionDisplay = () => {
   if (!hasContent && status === 'idle') return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700">Transcription</h3>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Transcription</h3>
+        <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">
           {langLabel}
         </span>
       </div>
@@ -24,16 +24,16 @@ export const TranscriptionDisplay = () => {
       <div
         className={cn(
           'min-h-16 text-sm leading-relaxed',
-          !hasContent && 'text-slate-400 italic',
+          !hasContent && 'text-slate-400 dark:text-slate-500 italic',
         )}
         aria-live="polite"
         aria-label="Live transcription"
       >
         {hasContent ? (
           <>
-            <span className="text-slate-800">{transcription}</span>
+            <span className="text-slate-800 dark:text-slate-200">{transcription}</span>
             {interimTranscription && (
-              <span className="text-slate-400 italic"> {interimTranscription}</span>
+              <span className="text-slate-400 dark:text-slate-500 italic"> {interimTranscription}</span>
             )}
           </>
         ) : (

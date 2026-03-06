@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { Mic, MicOff, Square, Pause, Play } from 'lucide-react';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { SpeechProviderManager } from './SpeechProviderManager';
 import { WaveformVisualizer } from './waveform-visualizer';
 import { cn } from '@/utils/cn';
@@ -139,6 +140,14 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
   const isPaused = status === 'paused';
   const isDone = status === 'done';
 
+  useKeyboardShortcuts({
+    onSpaceToggle: useCallback(() => {
+      if (isIdle) handleStart();
+      else if (isRecording || isPaused) handleStop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isIdle, isRecording, isPaused]),
+  });
+
   // Create object URL for audio playback when blob is available
   if (isDone && audioBlob && !audioUrlRef.current) {
     audioUrlRef.current = createAudioUrl(audioBlob);
@@ -149,13 +158,13 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
       {/* Waveform */}
       <div
         className={cn(
-          'relative h-16 w-full overflow-hidden rounded-lg bg-slate-100',
-          isRecording && 'bg-indigo-50',
+          'relative h-16 w-full overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-700',
+          isRecording && 'bg-indigo-50 dark:bg-indigo-900/30',
         )}
       >
         <canvas ref={canvasRef} className="h-full w-full" />
         {!isRecording && (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
             {isIdle ? 'Press record to start' : isPaused ? 'Paused' : isDone ? 'Recording complete' : ''}
           </div>
         )}
@@ -219,7 +228,7 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
         {isDone && (
           <button
             onClick={() => { reset(); unlockSession(); }}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             aria-label="New recording"
           >
             <MicOff className="h-4 w-4" />
@@ -246,17 +255,17 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
       )}
 
       {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+        <p className="rounded-md bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-700 dark:text-red-400" role="alert">
           {error}
         </p>
       )}
 
       {/* Live transcription preview */}
       {(transcription || interimTranscription) && (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-3 text-sm text-slate-700 dark:text-slate-300">
           {transcription}
           {interimTranscription && (
-            <span className="text-slate-400 italic"> {interimTranscription}</span>
+            <span className="text-slate-400 dark:text-slate-500 italic"> {interimTranscription}</span>
           )}
         </div>
       )}

@@ -51,13 +51,13 @@ export const WhisperModelSection = () => {
   };
 
   return (
-    <div className="space-y-3 rounded-md border border-slate-200 p-3">
+    <div className="space-y-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
       <div className="space-y-1">
-        <label className="text-xs font-medium text-slate-600">Model size</label>
+        <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Model size</label>
         <select
           value={modelSize}
           onChange={(e) => handleModelSizeChange(e.target.value as WhisperModelSize)}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           {(Object.keys(WHISPER_MODELS) as WhisperModelSize[]).map((size) => (
             <option key={size} value={size}>
@@ -69,14 +69,14 @@ export const WhisperModelSection = () => {
 
       {loadState === 'loading' && (
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1.5">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Downloading model…
             </span>
             <span>{progress}%</span>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div
               className="h-full bg-indigo-500 transition-all duration-300"
               style={{ width: `${progress}%` }}
@@ -86,14 +86,14 @@ export const WhisperModelSection = () => {
       )}
 
       {loadState === 'loaded' && (
-        <p className="flex items-center gap-1.5 text-xs text-green-600">
+        <p className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
           <CheckCircle className="h-3.5 w-3.5" />
           Model loaded — ready for offline use
         </p>
       )}
 
       {loadState === 'error' && (
-        <p className="flex items-center gap-1.5 text-xs text-red-600">
+        <p className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
           <XCircle className="h-3.5 w-3.5" />
           Failed to load model. Check your connection and try again.
         </p>
@@ -103,7 +103,7 @@ export const WhisperModelSection = () => {
         <button
           onClick={handleLoad}
           disabled={loadState === 'loading'}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 px-3 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-800/30 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
         >
           <Download className="h-4 w-4" />
           {loadState === 'loading' ? 'Downloading…' : 'Download & Load Model'}

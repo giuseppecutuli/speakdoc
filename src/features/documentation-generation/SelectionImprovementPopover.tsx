@@ -130,7 +130,7 @@ export const SelectionImprovementPopover = ({ textareaRef, content, onContentCha
     <div
       ref={popoverRef}
       style={popoverStyle}
-      className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg"
+      className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 shadow-lg"
       role="dialog"
       aria-label="Improve selection"
     >
@@ -144,7 +144,7 @@ export const SelectionImprovementPopover = ({ textareaRef, content, onContentCha
           if (e.key === 'Escape') dismiss();
         }}
         placeholder="Instruction (e.g. make formal)"
-        className="w-52 border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
+        className="w-52 border-none bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
         autoFocus
         disabled={isImproving}
         aria-label="Improvement instruction"

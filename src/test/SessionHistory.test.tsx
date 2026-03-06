@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const mockSessionRepo = {
-  getRecent: vi.fn(),
-  delete: vi.fn(),
-};
+var mockSessionRepo: any;
 
-vi.mock('@/utils/repositories', () => ({
-  sessionRepository: mockSessionRepo,
-  feedbackRepository: {},
-  draftRepository: {},
-}));
+vi.mock('@/utils/repositories', () => {
+  mockSessionRepo = {
+    getRecent: vi.fn(),
+    delete: vi.fn(),
+  };
+
+  return {
+    sessionRepository: mockSessionRepo,
+    feedbackRepository: {},
+    draftRepository: {},
+  };
+});
 
 vi.mock('@/features/export/export.service', () => ({
   copyToClipboard: vi.fn().mockResolvedValue(undefined),

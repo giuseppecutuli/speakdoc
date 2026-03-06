@@ -1,17 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-const mockDraftRepo = {
-  save: vi.fn().mockResolvedValue(undefined),
-  getLatest: vi.fn().mockResolvedValue(undefined),
-  clear: vi.fn().mockResolvedValue(undefined),
-};
+var mockDraftRepo: any;
 
-vi.mock('@/utils/repositories', () => ({
-  sessionRepository: {},
-  feedbackRepository: {},
-  draftRepository: mockDraftRepo,
-}));
+vi.mock('@/utils/repositories', () => {
+  mockDraftRepo = {
+    save: vi.fn().mockResolvedValue(undefined),
+    getLatest: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn().mockResolvedValue(undefined),
+  };
+
+  return {
+    sessionRepository: {},
+    feedbackRepository: {},
+    draftRepository: mockDraftRepo,
+  };
+});
 
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useRecordingStore } from '@/hooks/useRecordingStore';

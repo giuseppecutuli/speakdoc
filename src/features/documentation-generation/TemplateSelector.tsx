@@ -11,14 +11,14 @@ export const TemplateSelector = () => {
 
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor="template-selector" className="text-sm font-medium text-slate-700 whitespace-nowrap">
+      <label htmlFor="template-selector" className="text-sm font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
         Template
       </label>
       <select
         id="template-selector"
         value={selectedTemplateId}
         onChange={handleChange}
-        className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-100 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         aria-label="Documentation template"
         data-testid="template-selector"
       >

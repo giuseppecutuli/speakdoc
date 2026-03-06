@@ -24,11 +24,11 @@ const LanguageSelect = ({
   disabled?: boolean;
 }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-sm font-medium text-slate-700">{label}</label>
+    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
     <Select.Root value={value} onValueChange={(v) => onChange(v as LanguageCode)} disabled={disabled}>
       <Select.Trigger
         className={cn(
-          'flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm',
+          'flex h-10 w-full items-center justify-between rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100',
           'focus:outline-none focus:ring-2 focus:ring-indigo-500',
           'disabled:cursor-not-allowed disabled:opacity-50',
         )}
@@ -40,15 +40,15 @@ const LanguageSelect = ({
         </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Content className="z-50 overflow-hidden rounded-md border border-slate-200 bg-white shadow-md">
+        <Select.Content className="z-50 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-md">
           <Select.Viewport className="p-1">
             {LANGUAGE_OPTIONS.map((lang) => (
               <Select.Item
                 key={lang.code}
                 value={lang.code}
                 className={cn(
-                  'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none',
-                  'focus:bg-indigo-50 focus:text-indigo-900',
+                  'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none text-slate-800 dark:text-slate-200',
+                  'focus:bg-indigo-50 dark:focus:bg-indigo-900/30 focus:text-indigo-900 dark:focus:text-indigo-200',
                   'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
                 )}
               >
@@ -56,7 +56,7 @@ const LanguageSelect = ({
                   <Check className="h-4 w-4" />
                 </Select.ItemIndicator>
                 <Select.ItemText>
-                  {lang.label} <span className="text-slate-400">({lang.nativeLabel})</span>
+                  {lang.label} <span className="text-slate-400 dark:text-slate-500">({lang.nativeLabel})</span>
                 </Select.ItemText>
               </Select.Item>
             ))}
@@ -84,7 +84,7 @@ export const LanguageSelectionModal = ({ open, onConfirm }: LanguageSelectionMod
         <Dialog.Content
           className={cn(
             'fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2',
-            'rounded-xl bg-white p-6 shadow-xl focus:outline-none',
+            'rounded-xl bg-white dark:bg-slate-800 p-6 shadow-xl focus:outline-none',
           )}
           aria-describedby="language-modal-desc"
         >
@@ -93,10 +93,10 @@ export const LanguageSelectionModal = ({ open, onConfirm }: LanguageSelectionMod
               <Languages className="h-5 w-5 text-indigo-600" />
             </div>
             <div>
-              <Dialog.Title className="text-lg font-semibold text-slate-900">
+              <Dialog.Title className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 Select Languages
               </Dialog.Title>
-              <p id="language-modal-desc" className="text-sm text-slate-500">
+              <p id="language-modal-desc" className="text-sm text-slate-500 dark:text-slate-400">
                 Choose how you'll speak and what language to generate docs in.
               </p>
             </div>

@@ -562,6 +562,43 @@ _Refactor `Settings.tsx` (455 lines, exceeds 400-line guideline) by extracting i
 
 ---
 
+## Phase 4.15 — Long-Session Recording Support
+
+_Enables recording calls of 40+ minutes without accuracy degradation or WASM out-of-memory._
+
+### 4.15.1 Chunked Whisper recording
+
+- [x] Add `WHISPER_CHUNK_INTERVAL_MS = 30_000` to `src/constants/whisper-config.ts`
+- [x] Refactor `WhisperProvider.ts`:
+  - `createRecorder(stream)` private method — creates, wires, and starts each `MediaRecorder`
+  - `setInterval` in `start()` calls `rotateRecorder()` every 30 s — stops old recorder, creates a new one on the same stream; each resulting WebM file is independently decodable
+  - Serial `transcriptionQueue: Promise<void>` — chains all `onstop` transcriptions so WASM calls never overlap
+  - `pendingTranscriptions` counter + `isStopped` flag — `endCallback` fires only after the last chunk's transcription completes via `checkAllDone()`
+  - `clearTimer()` helper called by both `stop()` and `abort()`
+
+### 4.15.2 Recording duration timer
+
+- [x] Add `elapsed: number` state to `VoiceRecorder.tsx`
+- [x] `useEffect` increments counter every 1 s while `isRecording`
+- [x] Reset on `handleStart`; display as `MM:SS` next to the recording indicator
+
+### 4.15.3 Tests
+
+- [x] Update `whisper-provider.test.ts` — fix existing `onEnd` tests (call `provider.stop()` before `onstop`), add:
+  - "does not fire endCallback if stop has not been called" (rotation case)
+  - "does not fire endCallback after abort"
+  - Interval rotation creates second MediaRecorder (fake timers)
+  - `clearInterval` called on `stop()` and `abort()`
+  - Chunks transcribed serially (fake timers + blocked first transcription)
+
+### Phase 4.15 Exit Criteria
+
+- [x] 229 tests passing (20 in whisper-provider suite, 6 new tests added vs Phase 4.14)
+- [x] 0 TypeScript errors
+- [x] `VoiceRecorder` shows live `MM:SS` timer during recording
+
+---
+
 ## Phase 5 — Polish & Deploy (Week 5-6)
 
 ### 5.1 Layout & Navigation
@@ -632,6 +669,7 @@ _Refactor `Settings.tsx` (455 lines, exceeds 400-line guideline) by extracting i
 | Phase 4.12 | ✅ Complete | inline-improvement.service.ts — 6 new tests |
 | Phase 4.13 | ✅ Complete | SelectionImprovementPopover + DocumentImprovementModal + editor wiring — 11 new tests |
 | Phase 4.14 | ✅ Complete | Refactor Settings.tsx → BackendBadge, GeminiNanoGuide, WhisperModelSection — 223 tests passing |
+| Phase 4.15 | ✅ Complete | Long-session support: WhisperProvider 30 s chunk rotation + serial queue + MM:SS timer — 229 tests passing |
 | Phase 5 | 🔲 Not started | Layout, polish, E2E tests, accessibility |
 
 ---

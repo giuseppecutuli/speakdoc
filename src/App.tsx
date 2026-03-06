@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { SettingsPage } from '@/components/SettingsPage';
 import { HelpPanel } from '@/components/HelpPanel';
+import { DraftRestoreBanner } from '@/components/DraftRestoreBanner';
 import { LanguageSelectionModal } from '@/features/language-selection/LanguageSelectionModal';
 import { VoiceRecorder } from '@/features/voice-input/VoiceRecorder';
 import { TranscriptionDisplay } from '@/features/transcription/TranscriptionDisplay';
@@ -12,21 +13,36 @@ import { SessionHistory } from '@/features/learning/SessionHistory';
 import { AudioFileImporter } from '@/features/voice-input/AudioFileImporter';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { SUPPORTED_LANGUAGES } from '@/constants/languages';
+import { STORAGE_KEYS } from '@/constants/config';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
 import { useTemplateStore } from '@/hooks/useTemplateStore';
+import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useAISession } from '@/hooks/useAISession';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { downloadAsFile } from '@/features/export/export.service';
-import { sessionRepository } from '@/utils/repositories';
+import { sessionRepository, draftRepository } from '@/utils/repositories';
 import { SESSION_RETENTION_DAYS } from '@/constants/config';
+import type { DocumentationSession, SessionDraft } from '@/types/session';
+import type { OutputFormat } from '@/types/documentation';
+import type { LanguageCode } from '@/types/language';
+
+const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export const App = () => {
   const [view, setView] = useState<'main' | 'settings'>('main');
-  const [showLanguageModal, setShowLanguageModal] = useState(true);
-  const { loadFromStorage, unlockSession, speakingLanguage, outputLanguage } = useLanguageStore();
-  const { error: docError, reset: resetDoc, formattedOutput, selectedFormat } = useDocumentationStore();
+  const [showLanguageModal, setShowLanguageModal] = useState(
+    () => !localStorage.getItem(STORAGE_KEYS.SPEAKING_LANGUAGE),
+  );
+  const [pendingDraft, setPendingDraft] = useState<SessionDraft | null>(null);
+
+  const { loadFromStorage, unlockSession, speakingLanguage, outputLanguage, setLanguages } = useLanguageStore();
+  const { error: docError, reset: resetDoc, formattedOutput, selectedFormat, setFormattedOutput, setFormat } = useDocumentationStore();
   const { loadFromStorage: loadTemplate } = useTemplateStore();
+  const { setTranscription } = useRecordingStore();
   const { generate } = useAISession();
+
+  useDraftPersistence();
 
   useEffect(() => {
     loadFromStorage();
@@ -36,6 +52,15 @@ export const App = () => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - SESSION_RETENTION_DAYS);
     sessionRepository.deleteOlderThan(cutoff).catch(() => undefined);
+
+    // Check for unsaved draft on mount
+    draftRepository.getLatest().then((draft) => {
+      if (!draft) return;
+      const age = Date.now() - new Date(draft.savedAt).getTime();
+      if (age < DRAFT_MAX_AGE_MS && (draft.transcription || draft.generatedDoc)) {
+        setPendingDraft(draft);
+      }
+    }).catch(() => undefined);
   }, [loadFromStorage, loadTemplate]);
 
   const handleLanguageConfirm = () => {
@@ -47,6 +72,29 @@ export const App = () => {
     setShowLanguageModal(true);
     resetDoc();
   }, [unlockSession, resetDoc]);
+
+  const handleRestoreSession = useCallback((session: DocumentationSession) => {
+    setLanguages(session.speakingLanguage as LanguageCode, session.outputLanguage as LanguageCode);
+    setTranscription(session.transcription);
+    setFormat(session.format as OutputFormat);
+    setFormattedOutput(session.generatedDoc);
+    setShowLanguageModal(false);
+  }, [setLanguages, setTranscription, setFormat, setFormattedOutput]);
+
+  const handleRestoreDraft = useCallback(() => {
+    if (!pendingDraft) return;
+    setLanguages(pendingDraft.speakingLanguage as LanguageCode, pendingDraft.outputLanguage as LanguageCode);
+    setTranscription(pendingDraft.transcription);
+    setFormat(pendingDraft.format as OutputFormat);
+    setFormattedOutput(pendingDraft.generatedDoc);
+    setShowLanguageModal(false);
+    setPendingDraft(null);
+  }, [pendingDraft, setLanguages, setTranscription, setFormat, setFormattedOutput]);
+
+  const handleDismissDraft = useCallback(() => {
+    setPendingDraft(null);
+    draftRepository.clear().catch(() => undefined);
+  }, []);
 
   useKeyboardShortcuts({
     onSave: useCallback(() => {
@@ -63,6 +111,14 @@ export const App = () => {
       <LanguageSelectionModal open={showLanguageModal} onConfirm={handleLanguageConfirm} />
 
       <div className="space-y-6">
+        {pendingDraft && (
+          <DraftRestoreBanner
+            draft={pendingDraft}
+            onRestore={handleRestoreDraft}
+            onDismiss={handleDismissDraft}
+          />
+        )}
+
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Voice Recording</h2>
@@ -105,7 +161,7 @@ export const App = () => {
 
         <HelpPanel />
 
-        <SessionHistory />
+        <SessionHistory onRestore={handleRestoreSession} />
       </div>
     </Layout>
   );

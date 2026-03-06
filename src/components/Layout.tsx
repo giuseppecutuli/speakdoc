@@ -1,11 +1,11 @@
-import { FileText } from 'lucide-react';
-import { SettingsPanel } from './Settings';
+import { FileText, Settings2 } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
+  onSettingsClick: () => void;
 }
 
-export const Layout = ({ children }: LayoutProps) => (
+export const Layout = ({ children, onSettingsClick }: LayoutProps) => (
   <div className="min-h-screen bg-slate-50">
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-sm">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
@@ -15,7 +15,14 @@ export const Layout = ({ children }: LayoutProps) => (
           </div>
           <span className="text-base font-semibold text-slate-900">Speak Doc</span>
         </div>
-        <SettingsPanel />
+        <button
+          onClick={onSettingsClick}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+          aria-label="Open settings"
+        >
+          <Settings2 className="h-4 w-4" />
+          Settings
+        </button>
       </div>
     </header>
 

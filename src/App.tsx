@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
+import { SettingsPage } from '@/components/SettingsPage';
 import { LanguageSelectionModal } from '@/features/language-selection/LanguageSelectionModal';
 import { VoiceRecorder } from '@/features/voice-input/VoiceRecorder';
 import { TranscriptionDisplay } from '@/features/transcription/TranscriptionDisplay';
@@ -16,6 +17,7 @@ import { sessionRepository } from '@/utils/repositories';
 import { SESSION_RETENTION_DAYS } from '@/constants/config';
 
 export const App = () => {
+  const [view, setView] = useState<'main' | 'settings'>('main');
   const [showLanguageModal, setShowLanguageModal] = useState(true);
   const { loadFromStorage, unlockSession } = useLanguageStore();
   const { error: docError, reset: resetDoc } = useDocumentationStore();
@@ -42,8 +44,12 @@ export const App = () => {
     resetDoc();
   }, [unlockSession, resetDoc]);
 
+  if (view === 'settings') {
+    return <SettingsPage onBack={() => setView('main')} />;
+  }
+
   return (
-    <Layout>
+    <Layout onSettingsClick={() => setView('settings')}>
       <LanguageSelectionModal open={showLanguageModal} onConfirm={handleLanguageConfirm} />
 
       <div className="space-y-6">

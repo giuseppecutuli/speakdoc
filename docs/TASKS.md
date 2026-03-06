@@ -419,106 +419,106 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 _Prerequisite for Phase 4.11–4.13. No new files — extends existing store and editor._
 
 ### 4.10.1 Extend `useDocumentationStore`
-- [ ] Add `history: string[]`, `historyIndex: number` to state (initial: `[]`, `-1`)
-- [ ] Add `pushHistory(content: string): void` — prepend snapshot; cap at 20; reset redo tail
-- [ ] Add `undo(): void` — decrement `historyIndex`, restore content
-- [ ] Add `redo(): void` — increment `historyIndex`, restore content
-- [ ] Add derived `canUndo: boolean`, `canRedo: boolean`
-- [ ] Reset history on existing `reset()` action
-- [ ] Unit tests: pushHistory cap, undo/redo navigation, edge cases (empty, at bounds) — 8 tests
+- [x] Add `history: string[]`, `historyIndex: number` to state (initial: `[]`, `-1`)
+- [x] Add `pushHistory(content: string): void` — prepend snapshot; cap at 20; reset redo tail
+- [x] Add `undo(): void` — decrement `historyIndex`, restore content
+- [x] Add `redo(): void` — increment `historyIndex`, restore content
+- [x] Add derived `canUndo: boolean`, `canRedo: boolean`
+- [x] Reset history on existing `reset()` action
+- [x] Unit tests: pushHistory cap, undo/redo navigation, edge cases (empty, at bounds) — 8 tests
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 4.10.2 Undo/Redo UI in `DocumentationEditor`
-- [ ] Add `Undo` / `Redo` icon buttons to the editor toolbar header
-- [ ] Buttons disabled when `!canUndo` / `!canRedo`
-- [ ] Clicking Undo/Redo updates `editedContent` local state from store
+- [x] Add `Undo` / `Redo` icon buttons to the editor toolbar header
+- [x] Buttons disabled when `!canUndo` / `!canRedo`
+- [x] Clicking Undo/Redo updates `editedContent` local state from store
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### Phase 4.10 Exit Criteria
-- [ ] `pushHistory` snapshots content before AI edits
-- [ ] `undo()` / `redo()` navigate history correctly
-- [ ] History resets on document reset
-- [ ] Undo/Redo buttons appear and are correctly enabled/disabled
-- [ ] All tests pass; coverage ≥ 80%
+- [x] `pushHistory` snapshots content before AI edits
+- [x] `undo()` / `redo()` navigate history correctly
+- [x] History resets on document reset
+- [x] Undo/Redo buttons appear and are correctly enabled/disabled
+- [x] All tests pass; coverage ≥ 80%
 
 ---
 
 ## Phase 4.11 — Improvement Prompts
 
 ### 4.11.1 `src/constants/improvement-prompts.ts`
-- [ ] `buildSelectionImprovementPrompt(instruction, selectedText, outputLanguage)` → `{ system, user }`
-- [ ] `buildDocumentImprovementPrompt(instruction, fullContent, outputLanguage)` → `{ system, user }`
-- [ ] System prompt for selection: "Rewrite ONLY the provided excerpt per the instruction. Return ONLY the rewritten text."
-- [ ] System prompt for document: "Improve the entire document per the instruction. Return ONLY the improved document."
-- [ ] Unit tests: 2 scopes × 2 languages = 4 test cases + instruction injection checks — 8 tests
+- [x] `buildSelectionImprovementPrompt(instruction, selectedText, outputLanguage)` → `{ system, user }`
+- [x] `buildDocumentImprovementPrompt(instruction, fullContent, outputLanguage)` → `{ system, user }`
+- [x] System prompt for selection: "Rewrite ONLY the provided excerpt per the instruction. Return ONLY the rewritten text."
+- [x] System prompt for document: "Improve the entire document per the instruction. Return ONLY the improved document."
+- [x] Unit tests: 2 scopes × 2 languages = 4 test cases + instruction injection checks — 8 tests
 
 **Agent:** `ai-integration-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### Phase 4.11 Exit Criteria
-- [ ] Both prompt builders produce correct system/user message pairs
-- [ ] Output language is correctly embedded in prompts
-- [ ] Instruction is safely interpolated (no injection risk)
+- [x] Both prompt builders produce correct system/user message pairs
+- [x] Output language is correctly embedded in prompts
+- [x] Instruction is safely interpolated (no injection risk)
 
 ---
 
 ## Phase 4.12 — Inline Improvement Service
 
 ### 4.12.1 `src/features/documentation-generation/inline-improvement.service.ts`
-- [ ] `improveSelection(selectedText, instruction, outputLanguage): AsyncGenerator<string>` — calls AI manager with selection prompt
-- [ ] `improveDocument(fullContent, instruction, outputLanguage): AsyncGenerator<string>` — calls AI manager with document prompt
-- [ ] Reuses existing `AIManager` (Gemini Nano → external API fallback)
-- [ ] Throws `AINotConfiguredError` if no backend available
-- [ ] Unit tests: mocked AI manager, selection replacement, full doc replacement, error propagation — 6 tests
+- [x] `improveSelection(selectedText, instruction, outputLanguage): AsyncGenerator<string>` — calls AI manager with selection prompt
+- [x] `improveDocument(fullContent, instruction, outputLanguage): AsyncGenerator<string>` — calls AI manager with document prompt
+- [x] Reuses existing `AIManager` (Gemini Nano → external API fallback)
+- [x] Throws `AINotConfiguredError` if no backend available
+- [x] Unit tests: mocked AI manager, selection replacement, full doc replacement, error propagation — 6 tests
 
 **Agent:** `ai-integration-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### Phase 4.12 Exit Criteria
-- [ ] Both generators stream correctly through AI manager
-- [ ] Error propagation works (AINotConfiguredError bubbles up)
-- [ ] Tests pass with mocked AI manager
+- [x] Both generators stream correctly through AI manager
+- [x] Error propagation works (AINotConfiguredError bubbles up)
+- [x] Tests pass with mocked AI manager
 
 ---
 
 ## Phase 4.13 — AI Inline Editing UI
 
 ### 4.13.1 `SelectionImprovementPopover.tsx`
-- [ ] Detects textarea selection via `onSelect` → reads `selectionStart` / `selectionEnd`
-- [ ] Hides when selection is empty or length < 3 chars
-- [ ] Positions popover using `getBoundingClientRect()` on the textarea; `position: fixed`
-- [ ] Dismissed on `Escape`, click-outside, or scroll
-- [ ] Contains: instruction `<input>` (max 500 chars) + "Improve" submit button + loading spinner
-- [ ] On submit: calls `pushHistory()` → streams `improveSelection()` → replaces `[start, end]` in content
-- [ ] Unit tests: show/hide on selection, instruction validation, replacement logic — 5 tests
+- [x] Detects textarea selection via `onSelect` → reads `selectionStart` / `selectionEnd`
+- [x] Hides when selection is empty or length < 3 chars
+- [x] Positions popover using `getBoundingClientRect()` on the textarea; `position: fixed`
+- [x] Dismissed on `Escape`, click-outside, or scroll
+- [x] Contains: instruction `<input>` (max 500 chars) + "Improve" submit button + loading spinner
+- [x] On submit: calls `pushHistory()` → streams `improveSelection()` → replaces `[start, end]` in content
+- [x] Unit tests: show/hide on selection, instruction validation, replacement logic — 5 tests
 
 **Agent:** `frontend-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
 
 ### 4.13.2 `DocumentImprovementModal.tsx`
-- [ ] Radix Dialog modal (consistent with Settings)
-- [ ] Instruction textarea (max 500 chars, shows char count)
-- [ ] Submit → `pushHistory()` → streams `improveDocument()` → replaces full editor content
-- [ ] Shows streaming progress (spinner + partial text update in editor)
-- [ ] Disabled when `isGenerating` is true
-- [ ] Unit tests: open/close, instruction validation, submit flow — 3 tests
+- [x] Radix Dialog modal (consistent with Settings)
+- [x] Instruction textarea (max 500 chars, shows char count)
+- [x] Submit → `pushHistory()` → streams `improveDocument()` → replaces full editor content
+- [x] Shows streaming progress (spinner + partial text update in editor)
+- [x] Disabled when `isGenerating` is true
+- [x] Unit tests: open/close, instruction validation, submit flow — 3 tests
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 4.13.3 Wire into `DocumentationEditor.tsx`
-- [ ] Add `SelectionImprovementPopover` rendered outside textarea (portal or sibling)
-- [ ] Add "Improve Doc" button to toolbar → opens `DocumentImprovementModal`
-- [ ] HTML tab: disable inline editing UI, show tooltip "Switch to Markdown or Wiki tab to use AI editing"
-- [ ] All AI editing blocked while `isGenerating` is true
+- [x] Add `SelectionImprovementPopover` rendered outside textarea (portal or sibling)
+- [x] Add "Improve Doc" button to toolbar → opens `DocumentImprovementModal`
+- [x] HTML tab: disable inline editing UI, show tooltip "Switch to Markdown or Wiki tab to use AI editing"
+- [x] All AI editing blocked while `isGenerating` is true
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### Phase 4.13 Exit Criteria
-- [ ] Selecting text in Markdown/Wiki tab shows popover
-- [ ] Entering instruction + submitting replaces only selected text
-- [ ] "Improve Doc" button opens modal, full doc is replaced on submit
-- [ ] HTML tab shows disabled state with tooltip
-- [ ] Undo button enabled after each AI edit
-- [ ] All tests pass; total coverage ≥ 80%
+- [x] Selecting text in Markdown/Wiki tab shows popover
+- [x] Entering instruction + submitting replaces only selected text
+- [x] "Improve Doc" button opens modal, full doc is replaced on submit
+- [x] HTML tab shows disabled state with tooltip
+- [x] Undo button enabled after each AI edit
+- [x] All tests pass; total coverage ≥ 80%
 
 ---
 
@@ -529,36 +529,36 @@ _Refactor `Settings.tsx` (455 lines, exceeds 400-line guideline) by extracting i
 **Why now:** Clean separation of concerns before Phase 5 adds more UI files. Smaller files are easier to maintain and test.
 
 ### 4.14.1 Extract `BackendBadge`
-- [ ] Move `BackendBadge` component to `src/features/ai-integration/BackendBadge.tsx`
-- [ ] Export and import in `Settings.tsx`
-- [ ] No logic change, only file split
+- [x] Move `BackendBadge` component to `src/features/ai-integration/BackendBadge.tsx`
+- [x] Export and import in `Settings.tsx`
+- [x] No logic change, only file split
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 4.14.2 Extract `GeminiNanoGuide`
-- [ ] Move `GeminiNanoGuide` + `FLAG_STEPS` constant to `src/features/ai-integration/GeminiNanoGuide.tsx`
-- [ ] Export and import in `Settings.tsx`
+- [x] Move `GeminiNanoGuide` + `FLAG_STEPS` constant to `src/features/ai-integration/GeminiNanoGuide.tsx`
+- [x] Export and import in `Settings.tsx`
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 4.14.3 Extract `WhisperModelSection`
-- [ ] Move `WhisperModelSection` + its local helpers (`whisperLoadedKey`, `isWhisperModelCached`, `markWhisperModelCached`, `loadWhisperModelSize`, `saveWhisperModelSize`) to `src/features/voice-input/WhisperModelSection.tsx`
-- [ ] Export and import in `Settings.tsx`
+- [x] Move `WhisperModelSection` + its local helpers (`whisperLoadedKey`, `isWhisperModelCached`, `markWhisperModelCached`, `loadWhisperModelSize`, `saveWhisperModelSize`) to `src/features/voice-input/WhisperModelSection.tsx`
+- [x] Export and import in `Settings.tsx`
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### 4.14.4 Verify `Settings.tsx` reduced to ≤ 200 lines
-- [ ] After extractions, `Settings.tsx` should contain only `SettingsPanel` orchestration logic
-- [ ] Run full test suite — all 186+ tests must still pass (regression check)
-- [ ] `tsc --noEmit` must pass with 0 errors
+- [x] After extractions, `Settings.tsx` should contain only `SettingsPanel` orchestration logic
+- [x] Run full test suite — all 186+ tests must still pass (regression check)
+- [x] `tsc --noEmit` must pass with 0 errors
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
 
 ### Phase 4.14 Exit Criteria
-- [ ] `Settings.tsx` ≤ 200 lines
-- [ ] `BackendBadge.tsx`, `GeminiNanoGuide.tsx`, `WhisperModelSection.tsx` each ≤ 120 lines
-- [ ] 0 regressions — all existing tests pass
-- [ ] 0 TypeScript errors
+- [x] `Settings.tsx` ≤ 200 lines
+- [x] `BackendBadge.tsx`, `GeminiNanoGuide.tsx`, `WhisperModelSection.tsx` each ≤ 120 lines
+- [x] 0 regressions — all existing tests pass
+- [x] 0 TypeScript errors
 
 ---
 

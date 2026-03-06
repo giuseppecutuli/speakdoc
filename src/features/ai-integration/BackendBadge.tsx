@@ -3,9 +3,9 @@ import { cn } from '@/utils/cn';
 import type { AIBackend } from '@/types/ai';
 
 const BADGE_MAP: Record<AIBackend, { label: string; icon: typeof CheckCircle; cls: string }> = {
-  'gemini-nano': { label: 'Gemini Nano', icon: CheckCircle, cls: 'text-green-600 bg-green-50' },
-  'external-api': { label: 'External API', icon: CheckCircle, cls: 'text-blue-600 bg-blue-50' },
-  none: { label: 'No AI backend', icon: XCircle, cls: 'text-red-600 bg-red-50' },
+  'gemini-nano': { label: 'Gemini Nano', icon: CheckCircle, cls: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' },
+  'external-api': { label: 'External API', icon: CheckCircle, cls: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' },
+  none: { label: 'No AI backend', icon: XCircle, cls: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20' },
 };
 
 interface Props {

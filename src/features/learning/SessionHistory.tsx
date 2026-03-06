@@ -41,7 +41,7 @@ const SessionRow = ({ session }: SessionRowProps) => {
 
   return (
     <li
-      className="rounded-lg border border-slate-200 bg-white shadow-sm"
+      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm"
       data-testid="session-row"
     >
       <button
@@ -50,16 +50,16 @@ const SessionRow = ({ session }: SessionRowProps) => {
         aria-expanded={expanded}
       >
         <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="truncate text-sm font-medium text-slate-800">{preview}</p>
-          <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+          <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{preview}</p>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span>{formatDate(session.createdAt)}</span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">
+            <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 font-mono">
               {session.speakingLanguage}→{session.outputLanguage}
             </span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 uppercase font-mono">
+            <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 uppercase font-mono">
               {session.format}
             </span>
-            <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-600">
+            <span className="rounded bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 text-indigo-600 dark:text-indigo-400">
               {session.aiBackend}
             </span>
           </div>
@@ -72,14 +72,14 @@ const SessionRow = ({ session }: SessionRowProps) => {
       </button>
 
       {expanded && (
-        <div className="border-t border-slate-100 p-3 space-y-3">
-          <pre className="max-h-48 overflow-y-auto rounded-md bg-slate-50 p-2 text-xs text-slate-700 whitespace-pre-wrap">
+        <div className="border-t border-slate-100 dark:border-slate-700 p-3 space-y-3">
+          <pre className="max-h-48 overflow-y-auto rounded-md bg-slate-50 dark:bg-slate-900 p-2 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
             {session.generatedDoc}
           </pre>
           <div className="flex gap-2">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               aria-label="Copy generated doc"
             >
               <Copy className="h-3.5 w-3.5" />
@@ -87,7 +87,7 @@ const SessionRow = ({ session }: SessionRowProps) => {
             </button>
             <button
               onClick={handleDownload}
-              className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               aria-label="Download generated doc"
             >
               <Download className="h-3.5 w-3.5" />
@@ -116,10 +116,10 @@ export const SessionHistory = () => {
   if (!loaded || sessions.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <Clock className="h-4 w-4 text-slate-500" />
-        <h2 className="text-base font-semibold text-slate-900">Session History</h2>
+        <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Session History</h2>
       </div>
       <ul className="space-y-2" data-testid="session-history-list">
         {sessions.map((session) => (

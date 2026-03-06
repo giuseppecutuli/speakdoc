@@ -57,19 +57,19 @@ export const LearningPanel = () => {
   if (!loaded || suggestions.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+    <div className="rounded-xl border border-indigo-100 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-950/30 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <Lightbulb className="h-4 w-4 text-indigo-600" />
-        <h3 className="text-sm font-semibold text-indigo-900">Suggestions</h3>
+        <Lightbulb className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+        <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Suggestions</h3>
       </div>
       <ul className="space-y-3">
         {suggestions.map((suggestion, index) => (
           <li
             key={index}
-            className="flex items-start justify-between gap-3 rounded-lg bg-white p-3 shadow-sm"
+            className="flex items-start justify-between gap-3 rounded-lg bg-white dark:bg-slate-800 p-3 shadow-sm"
             data-testid="suggestion-item"
           >
-            <p className="text-sm text-slate-700">{suggestion.text}</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300">{suggestion.text}</p>
             <div className="flex shrink-0 items-center gap-1">
               {suggestion.feedback === null ? (
                 <>

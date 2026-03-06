@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const { mockServiceInstance } = vi.hoisted(() => {
   const mockServiceInstance = {
@@ -19,19 +19,22 @@ vi.mock('@/features/voice-input/whisper.service', () => {
 });
 
 // Provide MediaRecorder stub in test environment
-const mockMediaRecorder = {
+const makeMockRecorder = () => ({
   start: vi.fn(),
   stop: vi.fn(),
   ondataavailable: null as ((e: { data: Blob }) => void) | null,
-  onstop: null as (() => void) | null,
+  onstop: null as (() => Promise<void>) | null,
   state: 'inactive' as string,
-};
-vi.stubGlobal('MediaRecorder', vi.fn().mockImplementation(function () { return mockMediaRecorder; }));
+});
+
+let mockMediaRecorder = makeMockRecorder();
+const MediaRecorderMock = vi.fn().mockImplementation(function () { return mockMediaRecorder; });
+vi.stubGlobal('MediaRecorder', MediaRecorderMock);
 vi.stubGlobal('WebAssembly', {});
+
+const mockGetUserMedia = vi.fn().mockResolvedValue({ getTracks: () => [] });
 vi.stubGlobal('navigator', {
-  mediaDevices: {
-    getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [] }),
-  },
+  mediaDevices: { getUserMedia: mockGetUserMedia },
 });
 
 import { WhisperProvider } from '@/features/voice-input/providers/WhisperProvider';
@@ -41,11 +44,16 @@ describe('WhisperProvider', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockMediaRecorder.ondataavailable = null;
-    mockMediaRecorder.onstop = null;
+    mockMediaRecorder = makeMockRecorder();
+    MediaRecorderMock.mockImplementation(function () { return mockMediaRecorder; });
+    mockGetUserMedia.mockResolvedValue({ getTracks: () => [] });
     mockServiceInstance.isLoaded.mockReturnValue(false);
     mockServiceInstance.transcribe.mockResolvedValue('Hello world');
     provider = new WhisperProvider();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('has name "whisper"', () => {
@@ -101,7 +109,7 @@ describe('WhisperProvider', () => {
       expect(mockMediaRecorder.stop).toHaveBeenCalled();
     });
 
-    it('emits transcription result and fires end callback after recording stops', async () => {
+    it('emits transcription result and fires end callback after stop + onstop', async () => {
       const onResult = vi.fn();
       const onEnd = vi.fn();
       provider.onResult(onResult);
@@ -113,7 +121,8 @@ describe('WhisperProvider', () => {
       const fakeBlob = new Blob(['audio'], { type: 'audio/webm' });
       mockMediaRecorder.ondataavailable?.({ data: fakeBlob });
 
-      // Simulate MediaRecorder stop event
+      // stop() sets isStopped = true before onstop fires
+      provider.stop();
       await mockMediaRecorder.onstop?.();
 
       expect(mockServiceInstance.transcribe).toHaveBeenCalledWith(expect.any(Blob));
@@ -131,10 +140,26 @@ describe('WhisperProvider', () => {
       await provider.start('en');
       const fakeBlob = new Blob(['audio'], { type: 'audio/webm' });
       mockMediaRecorder.ondataavailable?.({ data: fakeBlob });
+
+      provider.stop();
       await mockMediaRecorder.onstop?.();
 
       expect(onError).toHaveBeenCalledWith(expect.stringContaining('WASM crash'));
       expect(onEnd).toHaveBeenCalled();
+    });
+
+    it('does not fire endCallback if stop has not been called', async () => {
+      const onEnd = vi.fn();
+      provider.onEnd(onEnd);
+
+      await provider.start('en');
+      const fakeBlob = new Blob(['audio'], { type: 'audio/webm' });
+      mockMediaRecorder.ondataavailable?.({ data: fakeBlob });
+
+      // onstop fires without stop() (intermediate rotation chunk)
+      await mockMediaRecorder.onstop?.();
+
+      expect(onEnd).not.toHaveBeenCalled();
     });
   });
 
@@ -146,6 +171,17 @@ describe('WhisperProvider', () => {
       provider.abort();
       expect(onResult).not.toHaveBeenCalled();
     });
+
+    it('does not fire endCallback after abort', async () => {
+      const onEnd = vi.fn();
+      provider.onEnd(onEnd);
+      await provider.start('en');
+      provider.abort();
+      mockMediaRecorder.ondataavailable?.({ data: new Blob(['audio']) });
+      // onstop fires but aborted flag prevents transcription and endCallback
+      await mockMediaRecorder.onstop?.();
+      expect(onEnd).not.toHaveBeenCalled();
+    });
   });
 
   describe('setModelSize()', () => {
@@ -154,6 +190,88 @@ describe('WhisperProvider', () => {
       provider.setModelSize('base');
       await provider.configure(onProgress);
       expect(mockServiceInstance.load).toHaveBeenCalledWith('base', onProgress);
+    });
+  });
+
+  describe('chunked recording (interval rotation)', () => {
+    it('creates a new MediaRecorder after WHISPER_CHUNK_INTERVAL_MS elapses', async () => {
+      vi.useFakeTimers();
+      await provider.start('en');
+      expect(MediaRecorderMock).toHaveBeenCalledTimes(1);
+
+      // Swap mock so the second recorder is different
+      const secondRecorder = makeMockRecorder();
+      MediaRecorderMock.mockImplementationOnce(function () { return secondRecorder; });
+
+      vi.advanceTimersByTime(30_000);
+
+      // Interval triggers rotateRecorder: old stop + new MediaRecorder created
+      expect(mockMediaRecorder.stop).toHaveBeenCalled();
+      expect(MediaRecorderMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('clears interval timer on stop()', async () => {
+      vi.useFakeTimers();
+      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+
+      await provider.start('en');
+      provider.stop();
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+
+    it('clears interval timer on abort()', async () => {
+      vi.useFakeTimers();
+      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+
+      await provider.start('en');
+      provider.abort();
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+
+    it('transcribes chunks serially — second transcription waits for first', async () => {
+      vi.useFakeTimers();
+      const order: string[] = [];
+      let resolveFirst!: () => void;
+      const firstDone = new Promise<void>((res) => { resolveFirst = res; });
+
+      mockServiceInstance.transcribe
+        .mockImplementationOnce(async () => {
+          await firstDone;
+          order.push('first');
+          return 'chunk one';
+        })
+        .mockImplementationOnce(async () => {
+          order.push('second');
+          return 'chunk two';
+        });
+
+      provider.onResult(vi.fn());
+      await provider.start('en');
+
+      const firstRecorder = mockMediaRecorder;
+
+      // Set up second recorder before interval fires
+      const secondRecorder = makeMockRecorder();
+      MediaRecorderMock.mockImplementationOnce(function () { return secondRecorder; });
+
+      // Advance timers → rotateRecorder fires: stops first, creates+starts second
+      vi.advanceTimersByTime(30_000);
+
+      // Both recorders now have their onstop handlers registered by createRecorder
+      firstRecorder.ondataavailable?.({ data: new Blob(['a']) });
+      const firstOnstoPromise = firstRecorder.onstop?.();
+
+      secondRecorder.ondataavailable?.({ data: new Blob(['b']) });
+      provider.stop(); // sets isStopped = true
+      const secondOnstoPromise = secondRecorder.onstop?.();
+
+      resolveFirst();
+      await firstOnstoPromise;
+      await secondOnstoPromise;
+
+      expect(order).toEqual(['first', 'second']);
     });
   });
 });

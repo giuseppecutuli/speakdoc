@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { Mic, MicOff, Square, Pause, Play } from 'lucide-react';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
@@ -15,6 +15,8 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
   const { status, transcription, interimTranscription, audioBlob, error, setStatus, appendTranscription, setAudioBlob, setError, reset } =
     useRecordingStore();
   const { speakingLanguage, lockSession, unlockSession } = useLanguageStore();
+
+  const [elapsed, setElapsed] = useState(0);
 
   const managerRef = useRef<SpeechProviderManager>(new SpeechProviderManager());
   const visualizerRef = useRef<WaveformVisualizer | null>(null);
@@ -49,11 +51,24 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
     };
   }, [stopAll]);
 
+  useEffect(() => {
+    if (status !== 'recording') return;
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [status]);
+
+  const formatElapsed = (seconds: number): string => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   const handleStart = async () => {
     if (audioUrlRef.current) {
       revokeAudioUrl(audioUrlRef.current);
       audioUrlRef.current = null;
     }
+    setElapsed(0);
     reset();
     setError(null);
 
@@ -215,7 +230,7 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
         {isRecording && (
           <span className="flex items-center gap-1.5 text-sm text-red-600 font-medium">
             <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            Recording
+            Recording · {formatElapsed(elapsed)}
           </span>
         )}
       </div>

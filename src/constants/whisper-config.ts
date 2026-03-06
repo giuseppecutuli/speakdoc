@@ -14,3 +14,6 @@ export const WHISPER_MODELS: Record<WhisperModelSize, WhisperModelMeta> = {
 
 export const DEFAULT_WHISPER_MODEL_SIZE: WhisperModelSize = 'tiny';
 export const WHISPER_LOAD_TIMEOUT_MS = 60_000;
+// Interval at which Whisper rotates its MediaRecorder — keeps each chunk ≤30s
+// so the model works within its optimal input range (trained on ≤30s segments)
+export const WHISPER_CHUNK_INTERVAL_MS = 30_000;

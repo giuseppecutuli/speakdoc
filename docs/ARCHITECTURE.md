@@ -472,13 +472,18 @@ class DocAssistantDB extends Dexie {
   sessions!: Table<DocumentationSession>;
   feedback!: Table<SessionFeedback>;
   whisperModels!: Table<WhisperModelRecord>;  // Phase 1b
+  drafts!: Table<SessionDraft>;               // Phase 6.2
 
   constructor() {
     super('DocAssistantDB');
     this.version(2).stores({
       sessions: '++id, speakingLanguage, outputLanguage, format, createdAt',
       feedback: '++id, sessionId, rating, createdAt',
-      whisperModels: 'modelId, downloadedAt',  // Phase 1b
+      whisperModels: 'modelId, downloadedAt',
+    });
+    this.version(3).stores({
+      // sessions, feedback, whisperModels unchanged
+      drafts: '++id, savedAt',               // Phase 6.2: single active draft
     });
   }
 }
@@ -494,6 +499,18 @@ interface DocumentationSession {
   createdAt: Date;
 }
 
+// Phase 6.2: Draft auto-save
+interface SessionDraft {
+  id?: number;
+  transcription: string;
+  generatedDoc: string;
+  format: string;
+  speakingLanguage: string;
+  outputLanguage: string;
+  audioBlob?: Blob;        // native Blob; omitted if > 25 MB
+  savedAt: Date;
+}
+
 // Phase 1b: Whisper model cache
 interface WhisperModelRecord {
   modelId: string;                    // e.g., 'Xenova/whisper-base'
@@ -502,6 +519,96 @@ interface WhisperModelRecord {
   downloadedAt: Date;
 }
 ```
+
+---
+
+## Session Persistence & Restore (Phase 6)
+
+### Overview
+
+Two complementary mechanisms prevent users from losing their work:
+
+1. **Phase 6.1 — Restore from history**: any completed session can be restored from `SessionHistory` into the active editor with a single click.
+2. **Phase 6.2 — Draft auto-save**: the current in-progress working state (transcription + generated doc + audio blob) is continuously written to IndexedDB. On the next page load, if a recent draft is found, a restore banner appears.
+
+### Phase 6.1 — Restore from Session History
+
+```
+SessionHistory (expanded row)
+    └── [Restore] button → onRestore(session: DocumentationSession) callback
+            ↓
+App.tsx — handleRestoreSession()
+    ├── useRecordingStore.setTranscription(session.transcription)
+    ├── useDocumentationStore.setFormattedOutput(session.generatedDoc)
+    ├── useDocumentationStore.setFormat(session.format)
+    ├── useLanguageStore.setLanguages(session.speakingLanguage, session.outputLanguage)
+    └── setShowLanguageModal(false)   // skip modal — language already known
+```
+
+### Phase 6.2 — Draft Auto-Save Architecture
+
+```
+useRecordingStore / useDocumentationStore (state change)
+    ↓
+useDraftPersistence hook (debounce 1 s)
+    ├── Skip if transcription === '' && generatedDoc === ''
+    ├── Omit audioBlob if > 25 MB
+    └── draftRepository.save(draft)   → IndexedDB drafts table (clear + insert)
+
+─────────────────────────────────────────────────────────
+
+App mount (page load / refresh)
+    ↓
+draftRepository.getLatest()
+    ├── No draft → normal startup
+    └── Draft found AND savedAt < 24 h ago AND session empty
+            ↓
+        DraftRestoreBanner renders
+            ├── [Restore] → populate all stores + set audioBlob
+            └── [Discard] → draftRepository.clear(); hide banner
+```
+
+### New Files (Phase 6)
+
+```
+src/
+  types/session.ts                              — SessionDraft interface added
+  utils/db.ts                                   — version 3 with drafts table
+  utils/repositories.ts                         — exports draftRepository
+  features/learning/repositories/
+    IDraftRepository.ts                         — save / getLatest / clear
+    IndexedDBDraftRepository.ts                 — Dexie implementation
+  hooks/
+    useDraftPersistence.ts                      — debounced auto-save hook
+  components/
+    DraftRestoreBanner.tsx                      — startup restore/discard banner
+```
+
+### IDraftRepository Interface
+
+```typescript
+export interface IDraftRepository {
+  save(draft: Omit<SessionDraft, 'id'>): Promise<SessionDraft>;
+  getLatest(): Promise<SessionDraft | undefined>;
+  clear(): Promise<void>;
+}
+```
+
+Only one draft is stored at a time. `IndexedDBDraftRepository.save()` clears the table before inserting, ensuring exactly one row.
+
+### Audio Blob Handling
+
+IndexedDB natively supports `Blob` storage — no base64 encoding required. The draft includes `audioBlob` only when the blob size is ≤ 25 MB. This avoids quota issues while still restoring audio for the common case (< 5 min recordings ≈ 5–15 MB).
+
+### Draft Lifecycle
+
+| Event | Effect |
+|---|---|
+| User types / doc generates | Auto-save fires (debounced 1 s) |
+| User clicks Regenerate / reset | `useDraftPersistence` detects empty state → `draftRepository.clear()` |
+| User restores from banner | Stores populated; banner hidden; draft NOT cleared (allows re-restore) |
+| User discards banner | `draftRepository.clear()`; banner hidden |
+| Draft > 24 h old | Banner not shown; draft is stale |
 
 ---
 

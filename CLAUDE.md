@@ -32,8 +32,15 @@ src/
     ai-integration/            ✅ Phase 2
     transcription/             ✅ Phase 1
     documentation-generation/  ✅ Phase 3
-    learning/                  ✅ Phase 4
+    learning/
+      ├── repositories/        ✅ Phase 4 (ISessionRepository, IndexedDB impl)
+      │   ├── IDraftRepository.ts         🔲 Phase 6.2
+      │   └── IndexedDBDraftRepository.ts 🔲 Phase 6.2
     export/                    ✅ Phase 3, 4
+  components/
+    └── DraftRestoreBanner.tsx  🔲 Phase 6.2
+  hooks/
+    └── useDraftPersistence.ts  🔲 Phase 6.2
   components/  hooks/  types/  constants/  utils/
 docs/PRD.md  ARCHITECTURE.md  TASKS.md
 .claude/agents/  (frontend-dev, ai-integration-dev, learning-engine-dev)
@@ -49,7 +56,8 @@ docs/PRD.md  ARCHITECTURE.md  TASKS.md
 | 2 | ✅ Complete | 98 |
 | 3 | ✅ Complete | 121 |
 | 4 | ✅ Complete | +25 (186 total) |
-| 5 | 🔲 Not started | - |
+| 5 | ✅ Complete | 229 |
+| 6 | 🔲 Not started | - |
 
 ## Agents
 | Agent | Use For |
@@ -67,4 +75,4 @@ docs/PRD.md  ARCHITECTURE.md  TASKS.md
 - Immutable state — Zustand `set()` always creates new objects
 - TDD — tests before implementation, 80%+ coverage
 - No hardcoded secrets — API keys in localStorage via Settings UI
-- Repository pattern — all DB access via `ISessionRepository`/`IFeedbackRepository`; swap `utils/repositories.ts` to migrate to Supabase
+- Repository pattern — all DB access via `ISessionRepository`/`IFeedbackRepository`/`IDraftRepository`; swap `utils/repositories.ts` to migrate to Supabase

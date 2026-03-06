@@ -654,6 +654,129 @@ _Enables recording calls of 40+ minutes without accuracy degradation or WASM out
 
 ---
 
+## Phase 6 — Session Persistence & Restore
+
+_Users lose transcription, generated docs, and audio when they refresh the page. Phase 6 solves this with two complementary mechanisms: restore from completed session history (6.1) and auto-save of the current in-progress work (6.2)._
+
+---
+
+### Phase 6.1 — Restore from Session History
+
+_Sessions are already saved to IndexedDB after doc generation (Phase 4.2). This phase adds the UI to restore them into the active editor._
+
+#### 6.1.1 Extend `useRecordingStore`
+- [ ] Add `setTranscription(text: string): void` action — sets `transcription` directly (needed for restore flow)
+- [ ] Unit tests: `setTranscription` sets state correctly — 1 test
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+#### 6.1.2 Restore button in `SessionHistory`
+- [ ] Add `onRestore?: (session: DocumentationSession) => void` prop to `SessionHistory` and `SessionRow`
+- [ ] Show "Restore" button (with `RotateCcw` icon) in the expanded row actions alongside Copy and Download
+- [ ] Unit tests: restore button renders, callback fires with session — 2 tests
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+#### 6.1.3 Wire restore in `App.tsx`
+- [ ] Add `handleRestoreSession(session: DocumentationSession): void` callback in `App.tsx`
+  - Call `useRecordingStore.setTranscription(session.transcription)`
+  - Call `useDocumentationStore.setFormattedOutput(session.generatedDoc)`
+  - Call `useDocumentationStore.setFormat(session.format as OutputFormat)`
+  - Call `useLanguageStore` to restore `speakingLanguage` and `outputLanguage`
+  - Dismiss language modal (`setShowLanguageModal(false)`)
+  - Scroll to top of page
+- [ ] Pass `onRestore={handleRestoreSession}` to `<SessionHistory />`
+- [ ] Unit tests: handleRestoreSession calls all store actions — 3 tests
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+#### Phase 6.1 Exit Criteria
+- [ ] Restore button visible in each expanded session row
+- [ ] Clicking Restore populates transcription display and documentation editor
+- [ ] Language pair is restored (modal does not re-appear)
+- [ ] All tests pass; coverage ≥ 80%
+
+---
+
+### Phase 6.2 — Draft Auto-Save + Restore on Reload
+
+_Auto-save the current working state (transcription + generated doc + audio) to IndexedDB. On page load, if a draft < 24 h old exists, offer to restore it via a banner._
+
+#### 6.2.1 `SessionDraft` type
+- [ ] Add `SessionDraft` interface to `src/types/session.ts`:
+  ```ts
+  interface SessionDraft {
+    id?: number;
+    transcription: string;
+    generatedDoc: string;
+    format: string;
+    speakingLanguage: string;
+    outputLanguage: string;
+    audioBlob?: Blob;      // capped at 25 MB; omit if larger
+    savedAt: Date;
+  }
+  ```
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+#### 6.2.2 Dexie v3 — `drafts` table
+- [ ] Bump `src/utils/db.ts` to version 3: add `drafts` table (`++id, savedAt`)
+- [ ] Unit tests: `drafts` table accessible, read/write round-trip — 2 tests
+
+**Agent:** `learning-engine-dev` | **Complexity:** LOW | **Risk:** LOW
+
+#### 6.2.3 `IDraftRepository` + `IndexedDBDraftRepository`
+- [ ] `src/features/learning/repositories/IDraftRepository.ts`:
+  - `save(draft: Omit<SessionDraft, 'id'>): Promise<SessionDraft>`
+  - `getLatest(): Promise<SessionDraft | undefined>`
+  - `clear(): Promise<void>`
+- [ ] `src/features/learning/repositories/IndexedDBDraftRepository.ts` — Dexie implementation (keep only most recent draft: clear then save)
+- [ ] Export `draftRepository` from `src/utils/repositories.ts`
+- [ ] Unit tests: save, getLatest, clear — 4 tests
+
+**Agent:** `learning-engine-dev` | **Complexity:** LOW | **Risk:** LOW
+
+#### 6.2.4 `useDraftPersistence` hook
+- [ ] `src/hooks/useDraftPersistence.ts`:
+  - Subscribes to `useRecordingStore` and `useDocumentationStore`
+  - Debounces saves by 1 s (lodash `debounce` or `setTimeout`)
+  - Skips save when both `transcription` and `generatedDoc` are empty
+  - Caps `audioBlob` at 25 MB; omits if larger
+  - Clears draft when `reset()` is called (watch `formattedOutput === ''`)
+- [ ] Unit tests: debounce triggers save, skip on empty, blob cap, clear on reset — 5 tests
+
+**Agent:** `frontend-dev` | **Complexity:** MEDIUM | **Risk:** LOW
+
+#### 6.2.5 `DraftRestoreBanner` component
+- [ ] `src/components/DraftRestoreBanner.tsx`:
+  - Shown when a draft exists, `savedAt` < 24 h ago, and current session is empty
+  - Displays: "You have an unsaved session from {relative time}. Restore it?"
+  - Two actions: **Restore** and **Discard**
+  - Restore: calls `onRestore(draft)` prop — parent populates all stores + sets `audioBlob`
+  - Discard: calls `draftRepository.clear()` and hides banner
+- [ ] Unit tests: render conditions, restore callback, discard clears draft — 4 tests
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+#### 6.2.6 Wire into `App.tsx`
+- [ ] On mount: check `draftRepository.getLatest()` — if found and < 24 h old, set draft state
+- [ ] Render `<DraftRestoreBanner>` above the Voice Recording card (when draft exists)
+- [ ] Mount `useDraftPersistence()` hook inside `App`
+- [ ] Unit tests: draft check on mount, banner renders — 2 tests
+
+**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
+
+#### Phase 6.2 Exit Criteria
+- [ ] Working state auto-saves to IndexedDB within 1 s of change
+- [ ] On page reload, banner appears if draft < 24 h old
+- [ ] Restore repopulates transcription, doc editor, audio blob
+- [ ] Discard clears the draft and hides the banner
+- [ ] No draft saved when session is empty
+- [ ] Audio > 25 MB is excluded from draft (no crash)
+- [ ] All tests pass; coverage ≥ 80%
+
+---
+
 ## Current Status
 
 | Phase | Status | Notes |
@@ -670,7 +793,8 @@ _Enables recording calls of 40+ minutes without accuracy degradation or WASM out
 | Phase 4.13 | ✅ Complete | SelectionImprovementPopover + DocumentImprovementModal + editor wiring — 11 new tests |
 | Phase 4.14 | ✅ Complete | Refactor Settings.tsx → BackendBadge, GeminiNanoGuide, WhisperModelSection — 223 tests passing |
 | Phase 4.15 | ✅ Complete | Long-session support: WhisperProvider 30 s chunk rotation + serial queue + MM:SS timer — 229 tests passing |
-| Phase 5 | 🔄 In progress | Dark mode, HelpPanel, keyboard shortcuts, README done — E2E tests and deploy pending |
+| Phase 5 | ✅ Complete | Dark mode, HelpPanel, keyboard shortcuts, README, language display — E2E tests and deploy pending |
+| Phase 6 | 🔲 Not started | Session persistence: restore from history (6.1) + draft auto-save (6.2) |
 
 ---
 

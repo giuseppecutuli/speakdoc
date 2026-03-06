@@ -1,9 +1,9 @@
 # Product Requirements Document
 ## Speak Doc — AI-Powered Documentation Tool
 
-**Version:** 1.2
+**Version:** 1.3
 **Status:** Approved
-**Last Updated:** 2026-03-05
+**Last Updated:** 2026-03-06
 
 ---
 
@@ -35,7 +35,7 @@ A browser-based tool that:
 
 ---
 
-## MVP Scope (Phase 1-5)
+## MVP Scope (Phase 1-6)
 
 ### In Scope
 
@@ -66,6 +66,8 @@ A browser-based tool that:
 | Session history browser (list, preview, re-export) | P1 | 4 |
 | AI inline editing (improve selected text or full doc via prompt) | P1 | 4 |
 | Revision history / undo for AI edits | P1 | 4 |
+| Restore completed session from history into editor | P1 | 6 |
+| Draft auto-save (transcription + doc + audio) survives page refresh | P1 | 6 |
 
 ### Out of Scope (MVP)
 
@@ -151,6 +153,18 @@ A browser-based tool that:
 - **FR-10.4** — History MUST be session-scoped (in-memory only, not persisted to IndexedDB)
 - **FR-10.5** — History stack MUST be capped at 20 snapshots to prevent memory issues
 
+### FR-11: Session Persistence & Restore
+
+- **FR-11.1** — The user MUST be able to restore any completed session from the Session History browser directly into the editor (transcription + generated doc + language pair)
+- **FR-11.2** — A "Restore" button MUST appear in each expanded session row alongside Copy and Download
+- **FR-11.3** — Restoring a session MUST NOT require the user to re-open the language selection modal
+- **FR-11.4** — The app MUST auto-save the current working state (transcription, generated doc, format, language pair, audio blob) to IndexedDB within 1 second of any change
+- **FR-11.5** — On page reload, if a draft < 24 hours old exists and the current session is empty, a restore banner MUST appear offering to restore or discard
+- **FR-11.6** — The user MUST be able to discard the draft (banner disappears, draft cleared from IndexedDB)
+- **FR-11.7** — Audio blobs MUST be included in the draft only if ≤ 25 MB; larger blobs are silently excluded
+- **FR-11.8** — Only one draft at a time is stored (new auto-save replaces the previous draft)
+- **FR-11.9** — Draft MUST be cleared when the user explicitly resets the session (Regenerate / start new session)
+
 ### FR-05: Learning System
 
 - **FR-05.1** — Each completed session MUST be stored in IndexedDB with metadata (language pair, format used, timestamp)
@@ -186,6 +200,7 @@ A browser-based tool that:
 
 ```
 1. App opens
+   ├── (If unsaved draft < 24 h old) → "Restore previous session?" banner → [Restore] or [Discard]
    └── Language selection modal appears
        ├── Speaking language: [Italian ▼]
        └── Output language:   [English ▼]
@@ -218,6 +233,10 @@ A browser-based tool that:
 
 6. (After 5+ sessions)
    └── Suggestions panel appears with improvement tips
+
+7. Session History
+   └── List of past sessions → expand → [Copy] [Download] [Restore]
+       └── [Restore] → populates editor with session's transcription + doc (no modal re-open)
 ```
 
 ---

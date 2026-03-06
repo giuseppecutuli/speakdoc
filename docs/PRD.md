@@ -97,6 +97,8 @@ A browser-based tool that:
 - **FR-02.4** — The user MUST be able to pause and resume recording
 - **FR-02.5** — The user MUST be able to stop and finalize recording
 - **FR-02.6** — Transcription MUST update in real-time as speech is detected
+- **FR-02.7** — Recording sessions of 40+ minutes MUST be supported without accuracy degradation or memory issues; when using Whisper WASM, audio MUST be chunked into ≤30 s segments and transcribed serially
+- **FR-02.8** — A live elapsed-time counter (MM:SS) MUST be displayed during recording
 
 ### FR-03: AI Processing
 

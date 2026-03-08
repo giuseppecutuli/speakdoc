@@ -1,7 +1,7 @@
 import type { LanguageCode } from '@/types/language';
 import type { TranscriptionResult } from '@/types/voice';
 
-export type SpeechProviderName = 'web-speech' | 'whisper';
+export type SpeechProviderName = 'web-speech' | 'assemblyai';
 
 export interface ISpeechProvider {
   readonly name: SpeechProviderName;

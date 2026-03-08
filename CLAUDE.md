@@ -3,13 +3,15 @@
 Browser webapp: record voice → AI generates structured docs → copy to Confluence/Notion.
 
 ## Stack
-React 18 + TypeScript + Vite | Zustand | Dexie.js (IndexedDB) | Zod | Tailwind + shadcn/ui | Vitest + Playwright | @xenova/transformers (Whisper WASM)
+React 18 + TypeScript + Vite | Zustand | Dexie.js (IndexedDB) | Zod | Tailwind + shadcn/ui | Vitest + Playwright | assemblyai (cloud STT)
 
 ## Speech-to-Text Strategy (Dual Provider)
 1. **Web Speech API** (default) — Real-time interim results, ~70–90% accuracy, no setup required
-2. **Whisper WASM** (optional, Phase 1b) — ~95–99% accuracy, offline, first use downloads model (~45–150 MB)
-   - User selects provider and model size in Settings
-   - Model cached in IndexedDB for subsequent uses
+2. **AssemblyAI** (optional, Phase 1c) — ~95–99% accuracy, cloud-based, requires API key
+   - **Batch**: `AssemblyAIService.transcribe()` used by `AudioFileImporter` (upload a file)
+   - **Real-time streaming**: `AssemblyAIProvider` used by `VoiceRecorder` (live mic via WebSocket)
+   - User enters AssemblyAI API key in Settings (stored in localStorage only)
+   - In-app guide explains how to obtain a free API key
 
 ## AI Strategy
 1. **Gemini Nano** (`window.ai.languageModel`) — Chrome 123+ with experimental flag
@@ -26,9 +28,9 @@ src/
   features/
     language-selection/       ✅ Phase 1
     voice-input/
-      ├── providers/          ✅ Phase 1a (WebSpeech), ✅ Phase 1b (Whisper)
-      ├── whisper.service.ts  ✅ Phase 1b
-      └── whisper-model-cache.ts ✅ Phase 1b
+      ├── providers/          ✅ Phase 1a (WebSpeech), ✅ Phase 1c (AssemblyAI streaming)
+      ├── assemblyai.service.ts  ✅ Phase 1c (batch transcription for file import)
+      └── (whisper files removed in Phase 1c)
     ai-integration/            ✅ Phase 2
     transcription/             ✅ Phase 1
     documentation-generation/  ✅ Phase 3
@@ -52,7 +54,8 @@ docs/PRD.md  ARCHITECTURE.md  TASKS.md
 |---|---|---|
 | 1 | ✅ Complete | 49 |
 | 1a | ✅ Complete | +38 (87 total) |
-| 1b | ✅ Complete | +40 (161 total) |
+| 1b | ✅ Superseded | replaced by Phase 1c |
+| 1c | ✅ Complete | AssemblyAI streaming + batch; 247 total |
 | 2 | ✅ Complete | 98 |
 | 3 | ✅ Complete | 121 |
 | 4 | ✅ Complete | +25 (186 total) |
@@ -63,15 +66,15 @@ docs/PRD.md  ARCHITECTURE.md  TASKS.md
 | Agent | Use For |
 |---|---|
 | `frontend-dev` | Language modal, voice recording, speech providers, formatters, UI |
-| `ai-integration-dev` | Gemini Nano, external API, Whisper WASM, prompt engineering |
-| `learning-engine-dev` | IndexedDB/Dexie, Whisper model cache, pattern analysis, suggestions |
+| `ai-integration-dev` | Gemini Nano, external API, AssemblyAI, prompt engineering |
+| `learning-engine-dev` | IndexedDB/Dexie, pattern analysis, suggestions |
 
 > Unit tests live inside each agent's checklist. No separate test agent needed.
 
 ## Rules
 - Language selection gates recording — never skip it
 - AI fallback is mandatory — never assume Gemini Nano available
-- Speech provider fallback is mandatory — gracefully degrade Web Speech → Whisper → error
+- Speech provider fallback is mandatory — gracefully degrade Web Speech → AssemblyAI → error
 - Immutable state — Zustand `set()` always creates new objects
 - TDD — tests before implementation, 80%+ coverage
 - No hardcoded secrets — API keys in localStorage via Settings UI

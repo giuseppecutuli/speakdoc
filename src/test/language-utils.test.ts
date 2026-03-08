@@ -12,13 +12,13 @@ describe('getLanguageCodeForProvider', () => {
     });
   });
 
-  describe('whisper provider (ISO 639-1)', () => {
+  describe('assemblyai provider (ISO 639-1)', () => {
     it('returns it for Italian', () => {
-      expect(getLanguageCodeForProvider('it', 'whisper')).toBe('it');
+      expect(getLanguageCodeForProvider('it', 'assemblyai')).toBe('it');
     });
 
     it('returns en for English', () => {
-      expect(getLanguageCodeForProvider('en', 'whisper')).toBe('en');
+      expect(getLanguageCodeForProvider('en', 'assemblyai')).toBe('en');
     });
   });
 });

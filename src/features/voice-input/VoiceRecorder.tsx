@@ -1,33 +1,25 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Mic, MicOff, Square, Pause, Play, RefreshCw } from 'lucide-react';
+import { Mic, MicOff, Square, Pause, Play } from 'lucide-react';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { SpeechProviderManager } from './SpeechProviderManager';
-import { WhisperService } from './whisper.service';
-import { WHISPER_MODELS, DEFAULT_WHISPER_MODEL_SIZE, type WhisperModelSize } from '@/constants/whisper-config';
-import { STORAGE_KEYS } from '@/constants/config';
 import { WaveformVisualizer } from './waveform-visualizer';
 import { cn } from '@/utils/cn';
 import { createAudioUrl, revokeAudioUrl } from '@/utils/audio-url';
-
-const loadWhisperModelSize = (): WhisperModelSize =>
-  (localStorage.getItem(STORAGE_KEYS.WHISPER_MODEL_SIZE) as WhisperModelSize) ?? DEFAULT_WHISPER_MODEL_SIZE;
 
 interface VoiceRecorderProps {
   onTranscriptionComplete: (text: string) => void;
 }
 
 export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) => {
-  const { status, transcription, interimTranscription, audioBlob, error, setStatus, appendTranscription, setTranscription, setAudioBlob, setError, reset } =
+  const { status, transcription, interimTranscription, audioBlob, error, setStatus, appendTranscription, setAudioBlob, setError, reset } =
     useRecordingStore();
   const { speakingLanguage, lockSession, unlockSession } = useLanguageStore();
 
   const [elapsed, setElapsed] = useState(0);
-  const [retranscribing, setRetranscribing] = useState(false);
 
   const managerRef = useRef<SpeechProviderManager>(new SpeechProviderManager());
-  const whisperRetryServiceRef = useRef<WhisperService | null>(null);
   const visualizerRef = useRef<WaveformVisualizer | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -70,34 +62,6 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
-  };
-
-  const handleRetranscribe = async () => {
-    const blob = useRecordingStore.getState().audioBlob;
-    if (!blob) return;
-
-    setRetranscribing(true);
-    setError(null);
-
-    try {
-      if (!whisperRetryServiceRef.current) {
-        whisperRetryServiceRef.current = new WhisperService();
-      }
-      const svc = whisperRetryServiceRef.current;
-      const modelSize = loadWhisperModelSize();
-      const { modelId } = WHISPER_MODELS[modelSize];
-      if (!svc.isLoaded() || svc.getLoadedModelSize() !== modelSize) {
-        await svc.load(modelSize);
-        localStorage.setItem(`speak-doc:whisper-loaded:${modelId}`, '1');
-      }
-      const text = await svc.transcribe(blob);
-      setTranscription(text);
-      if (text) onTranscriptionComplete(text);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Re-transcription failed');
-    } finally {
-      setRetranscribing(false);
-    }
   };
 
   const handleStart = async () => {
@@ -262,27 +226,14 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
         )}
 
         {isDone && (
-          <>
-            <button
-              onClick={() => { reset(); unlockSession(); }}
-              className="flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-              aria-label="New recording"
-            >
-              <MicOff className="h-4 w-4" />
-              New Recording
-            </button>
-            {audioBlob && (
-              <button
-                onClick={handleRetranscribe}
-                disabled={retranscribing}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Re-transcribe recording"
-              >
-                <RefreshCw className={cn('h-4 w-4', retranscribing && 'animate-spin')} />
-                {retranscribing ? 'Transcribing…' : 'Re-transcribe'}
-              </button>
-            )}
-          </>
+          <button
+            onClick={() => { reset(); unlockSession(); }}
+            className="flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            aria-label="New recording"
+          >
+            <MicOff className="h-4 w-4" />
+            New Recording
+          </button>
         )}
 
         {isRecording && (

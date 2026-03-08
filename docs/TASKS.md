@@ -126,100 +126,40 @@ _Refactors the existing Web Speech API usage into a pluggable provider pattern. 
 
 ---
 
-## Phase 1b — Whisper WASM Provider (post-MVP, optional)
+## Phase 1b — Whisper WASM Provider ✅ COMPLETE (superseded by Phase 1c)
 
-_Add offline, high-accuracy speech-to-text via whisper.cpp running in the browser as WebAssembly. Requires Phase 1a to be complete. Can be started independently of Phase 2–5._
+_Was: offline high-accuracy STT via @xenova/transformers. Replaced by AssemblyAI in Phase 1c due to slow model downloads and CPU-bound inference. All Phase 1b code has been removed._
 
-> **Feasibility**: ✅ Fully feasible. `@xenova/transformers` ships pre-compiled Whisper WASM bundles. No backend or native binary needed — runs entirely in the browser tab.
+> **Status**: All Whisper files deleted as part of Phase 1c cleanup. Tests removed. 229 tests passing post-cleanup.
 
-### 1b.1 Evaluate & Prototype WASM Library
-- [x] Evaluate `@xenova/transformers` v3+: bundle size, language support, model formats, maintenance
-- [x] Prototype: load `Xenova/whisper-tiny` model, transcribe a short audio Blob
-- [x] Benchmark accuracy vs Web Speech API on Italian and English samples
-- [x] Document chosen API surface
+---
 
-**Agent:** `ai-integration-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
+## Phase 1c — AssemblyAI Provider ✅ COMPLETE (replaces Whisper WASM)
 
-### 1b.2 WhisperProvider Implementation
-- [x] `src/features/voice-input/providers/WhisperProvider.ts` — implements `ISpeechProvider`
-- [x] `isAvailable()` → `typeof WebAssembly !== 'undefined'`
-- [x] `isConfigured()` → lazy-loads WASM pipeline with progress callback
-- [x] `start()` → uses `MediaRecorder` to capture audio Blob, then transcribes
-- [x] Emits `TranscriptionResult` (final only — no interim results from Whisper)
-- [x] Error handling: network failure, model download timeout, WASM crash
-- [x] Unit tests: availability detection, model loading (mocked WASM), error states (14 tests)
+_Whisper WASM removed; AssemblyAI integrated in two modes: real-time streaming (VoiceRecorder) and batch upload (AudioFileImporter)._
 
-**Agent:** `ai-integration-dev` | **Complexity:** HIGH | **Risk:** HIGH
+> **Architecture**: `AssemblyAIProvider` streams live PCM audio via `client.streaming.transcriber()` (WebSocket) for real-time use. `AssemblyAIService.transcribe()` uses `client.transcripts.transcribe()` for file uploads. User's own API key stored in localStorage.
 
-### 1b.3 Whisper Model Cache (IndexedDB)
-- [x] `src/features/voice-input/whisper-model-cache.ts` — cache WASM model binary in IndexedDB
-- [x] On first use: download → show progress → store in Dexie
-- [x] Subsequent uses: load from cache (no network request)
-- [x] Storage quota check; graceful degradation if quota exceeded
-- [x] Unit tests: save/load, quota handling (10 tests)
+### Summary of completed work
+- [x] Removed all Whisper WASM files and `@xenova/transformers` dependency
+- [x] `src/constants/assemblyai-config.ts` — `ASSEMBLYAI_LANGUAGE_MAP`, `ASSEMBLYAI_STREAMING_MODEL_MAP`, `ASSEMBLYAI_MODELS`, `DEFAULT_ASSEMBLYAI_MODEL`
+- [x] `src/constants/config.ts` — `ASSEMBLYAI_API_KEY`, `ASSEMBLYAI_MODEL` in `STORAGE_KEYS`
+- [x] `src/features/voice-input/types/speech-provider.ts` — `SpeechProviderName`: `'web-speech' | 'assemblyai'`
+- [x] `src/features/voice-input/assemblyai.service.ts` — batch transcription service (17 tests)
+- [x] `src/features/voice-input/providers/AssemblyAIProvider.ts` — real-time streaming via `StreamingTranscriber` (17 tests)
+- [x] `src/features/voice-input/SpeechProviderManager.ts` — uses `AssemblyAIProvider`
+- [x] Settings UI updated with API key input + guide + model selector
+- [x] All 247 tests passing (10 speech-provider-manager, 17 assemblyai-provider, 17 assemblyai-service)
 
-**Agent:** `learning-engine-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
-
-### 1b.4 WhisperService Wrapper
-- [x] `src/features/voice-input/whisper.service.ts` — wraps @xenova/transformers pipeline
-- [x] Methods: load(modelId, onProgress), transcribe(audioBlob), unload(), isLoaded(), getLoadedModelSize()
-- [x] Lifecycle management: lazy load, single instance, proper cleanup
-- [x] Unit tests: initialization, transcription, error states (16 tests)
-
-**Agent:** `ai-integration-dev` | **Complexity:** MEDIUM | **Risk:** MEDIUM
-
-### 1b.5 Settings UI — Provider Selector
-- [x] Extend `src/components/Settings.tsx`:
-  - Provider dropdown: `Web Speech API` | `Whisper (Offline WASM)` | `Auto (Best Available)`
-  - Whisper sub-options: model size (`tiny` ≈ 45 MB | `base` ≈ 75 MB | `small` ≈ 150 MB)
-- [x] Persist to localStorage via STORAGE_KEYS
-- [x] Show active provider badge in recording UI
-- [x] Model download progress UI integrated into settings
-
-**Agent:** `frontend-dev` | **Complexity:** MEDIUM | **Risk:** LOW
-
-### 1b.6 Constants & Configuration
-- [x] `src/constants/whisper-config.ts` — WhisperModelSize type, WHISPER_MODELS record, DEFAULT_WHISPER_MODEL_SIZE, WHISPER_LOAD_TIMEOUT_MS
-- [x] `src/constants/config.ts` — add SPEECH_PROVIDER and WHISPER_MODEL_SIZE to STORAGE_KEYS
-- [x] `src/utils/db.ts` — WhisperModelRecord type, whisperModels table in Dexie version 2
-
-**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW
-
-### 1b.7 SpeechProviderManager Integration
-- [x] Update `src/features/voice-input/SpeechProviderManager.ts` to include WhisperProvider in default array
-- [x] Fallback chain: Whisper unavailable → Web Speech API
-- [x] All Phase 1a tests remain passing
-
-**Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** MEDIUM
-
-### 1b.8 Tests
-- [x] `src/test/whisper-provider.test.ts` — mocked WASM: load + transcribe + error states (14 tests)
-- [x] `src/test/whisper-model-cache.test.ts` — IndexedDB cache operations (10 tests)
-- [x] `src/test/whisper-service.test.ts` — WhisperService lifecycle, transcription, cleanup (16 tests)
-- [x] All new tests pass; speech module coverage ≥ 80%
-
-**Agent:** `frontend-dev` + `ai-integration-dev` | **Complexity:** HIGH | **Risk:** MEDIUM
-
-### 1b.9 Bug Fixes
-- [x] **Bug Fix 1 — Model cache persistence** (`src/components/Settings.tsx`, `src/features/voice-input/whisper.service.ts`):
-  - Problem: After page refresh, `WhisperService.isLoaded()` always returned `false` (in-memory state only), causing UI to show "Download" button again
-  - Solution: Added localStorage helpers (`whisperLoadedKey`, `isWhisperModelCached`, `markWhisperModelCached`) that persist marker key `speak-doc:whisper-loaded:{modelId}`; `WhisperModelSection` initial `loadState` now derives from this marker; `markWhisperModelCached` called after successful download
-- [x] **Bug Fix 2 — Progress bar NaN and backward jumps** (`src/features/voice-input/whisper.service.ts`, `src/components/Settings.tsx`):
-  - Problem: `@xenova/transformers` fires multiple event types (`initiate`, `download`, `progress`, `done`, `ready`), only `progress` events have numeric `progress` field (others `undefined` → `NaN`); multiple model file downloads sequentially each reset to 0% causing backward jumps
-  - Solution Service Layer: Guard onProgress callback — only call when `event.status === 'progress'` AND `typeof event.progress === 'number'` AND `!isNaN(event.progress)`
-  - Solution UI Layer: Progress state update uses `Math.max(prev, Math.round(pct))` to ensure progress only ever increases
-
-### Phase 1b Exit Criteria
-- [x] `WhisperProvider` implements `ISpeechProvider`
-- [x] Model downloads on first use with visible progress
-- [x] Model cached in IndexedDB (via WhisperModelCache) + localStorage persistence
-- [x] Recording works end-to-end with Whisper
-- [x] Fallback: Whisper WASM unavailable → Web Speech API
-- [x] Settings allow user to switch provider and model size
-- [x] All tests pass: 161 total tests, coverage ≥ 80%
-- [x] No regressions: Phase 1, 1a, 2, 3 tests still passing
-- [x] Page refresh preserves model cache state and shows correct download status
-- [x] Progress bar displays correctly without NaN or backward jumps
+### Phase 1c Exit Criteria
+- [x] All Whisper files deleted; no `whisper` / `@xenova` references remain
+- [x] `AssemblyAIProvider` implements `ISpeechProvider`; registered in `SpeechProviderManager`
+- [x] Real-time streaming: PCM audio → AssemblyAI WebSocket → interim/final results
+- [x] Batch mode: audio file → `AssemblyAIService.transcribe()` → transcript string
+- [x] Fallback: AssemblyAI unconfigured → Web Speech API
+- [x] API key stored in localStorage; never hardcoded
+- [x] All tests pass; coverage ≥ 80% (247 tests)
+- [x] No regressions: all prior phase tests passing
 
 ---
 
@@ -786,7 +726,8 @@ _Auto-save the current working state (transcription + generated doc + audio) to 
 |---|---|---|
 | Phase 1 | ✅ Complete | 49 tests passing, build clean, two-tier prompts (full + compact) |
 | Phase 1a | ✅ Complete | ISpeechProvider, WebSpeechProvider, SpeechProviderManager, language-utils — 87 tests passing |
-| Phase 1b | ✅ Complete | WhisperProvider, WhisperService, WhisperModelCache, Settings UI — 40 new tests added, 161 total tests passing |
+| Phase 1b | ✅ Complete (superseded) | Replaced by Phase 1c — all Whisper files deleted |
+| Phase 1c | ✅ Complete | AssemblyAI streaming (VoiceRecorder) + batch (AudioFileImporter) — 247 tests |
 | Phase 2 | ✅ Complete | AIProvider, useAISession, gemini-nano tests — 98 tests passing |
 | Phase 3 | ✅ Complete | Formatters, DocumentationEditor, ExportPanel, audio playback — 163 tests passing |
 | Phase 4 | ✅ Complete | LearningPanel, SessionHistory, AudioFileImporter, TemplateSelector, audio-export, data-management — 186 tests passing |
@@ -805,6 +746,6 @@ _Auto-save the current working state (transcription + generated doc + audio) to 
 
 | Agent | Phases | Primary Responsibility |
 |---|---|---|
-| `frontend-dev` | 1, 1a, 1b, 3, 4, 5 | Language selection, voice recording, speech providers, formatters, audio playback/export/import, template selector, UI |
-| `ai-integration-dev` | 1b, 2, 4, 5 | Gemini Nano, external API, Whisper WASM, prompt engineering, template prompt modifiers |
-| `learning-engine-dev` | 1b, 4 | IndexedDB, Dexie.js, Whisper model cache, pattern analysis, session history |
+| `frontend-dev` | 1, 1a, 1c, 3, 4, 5 | Language selection, voice recording, speech providers, formatters, audio playback/export/import, template selector, UI |
+| `ai-integration-dev` | 1c, 2, 4, 5 | Gemini Nano, external API, AssemblyAI, prompt engineering, template prompt modifiers |
+| `learning-engine-dev` | 4 | IndexedDB, Dexie.js, pattern analysis, session history |

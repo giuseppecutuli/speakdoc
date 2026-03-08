@@ -14,9 +14,9 @@ const SHORTCUTS = [
   { key: 'Esc', description: 'Close modals and popovers' },
 ];
 
-const ACCURACY = [
-  { language: 'English', webSpeech: '~85%', whisper: '~97%' },
-  { language: 'Italian', webSpeech: '~80%', whisper: '~95%' },
+const ACCURACY: { language: string; webSpeech: string; assemblyAI: string }[] = [
+  { language: 'English', webSpeech: '~85%', assemblyAI: '~97%' },
+  { language: 'Italian', webSpeech: '~80%', assemblyAI: '~95%' },
 ];
 
 export const HelpPanel = () => {
@@ -91,18 +91,18 @@ export const HelpPanel = () => {
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
                     <th className="px-3 py-1.5 text-left font-medium text-slate-500 dark:text-slate-400">Language</th>
                     <th className="px-3 py-1.5 text-center font-medium text-slate-500 dark:text-slate-400">Web Speech</th>
-                    <th className="px-3 py-1.5 text-center font-medium text-slate-500 dark:text-slate-400">Whisper</th>
+                    <th className="px-3 py-1.5 text-center font-medium text-slate-500 dark:text-slate-400">AssemblyAI</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ACCURACY.map(({ language, webSpeech, whisper }) => (
+                  {ACCURACY.map(({ language, webSpeech, assemblyAI }) => (
                     <tr
                       key={language}
                       className="border-b last:border-0 border-slate-100 dark:border-slate-700"
                     >
                       <td className="px-3 py-1.5 text-slate-700 dark:text-slate-200">{language}</td>
                       <td className="px-3 py-1.5 text-center text-slate-500 dark:text-slate-400">{webSpeech}</td>
-                      <td className="px-3 py-1.5 text-center font-semibold text-green-600 dark:text-green-400">{whisper}</td>
+                      <td className="px-3 py-1.5 text-center font-semibold text-green-600 dark:text-green-400">{assemblyAI}</td>
                     </tr>
                   ))}
                 </tbody>

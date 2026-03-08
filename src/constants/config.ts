@@ -8,7 +8,8 @@ export const STORAGE_KEYS = {
   API_KEY: 'speak-doc:api-key',
   MODEL: 'speak-doc:model',
   SPEECH_PROVIDER: 'speak-doc:speech-provider',
-  WHISPER_MODEL_SIZE: 'speak-doc:whisper-model-size',
+  ASSEMBLYAI_API_KEY: 'speak-doc:assemblyai-api-key',
+  ASSEMBLYAI_MODEL: 'speak-doc:assemblyai-model',
   DOC_TEMPLATE: 'speak-doc:doc-template',
 } as const;
 

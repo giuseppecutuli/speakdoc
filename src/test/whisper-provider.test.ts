@@ -203,7 +203,7 @@ describe('WhisperProvider', () => {
       const secondRecorder = makeMockRecorder();
       MediaRecorderMock.mockImplementationOnce(function () { return secondRecorder; });
 
-      vi.advanceTimersByTime(30_000);
+      vi.advanceTimersByTime(15_000);
 
       // Interval triggers rotateRecorder: old stop + new MediaRecorder created
       expect(mockMediaRecorder.stop).toHaveBeenCalled();

@@ -16,6 +16,14 @@ export class IndexedDBSessionRepository implements ISessionRepository {
     return db.sessions.orderBy('createdAt').reverse().limit(limit).toArray();
   }
 
+  async update(id: number, changes: Partial<DocumentationSession>): Promise<void> {
+    await db.sessions.update(id, changes);
+  }
+
+  async delete(id: number): Promise<void> {
+    await db.sessions.delete(id);
+  }
+
   async deleteOlderThan(date: Date): Promise<void> {
     await db.sessions.where('createdAt').below(date).delete();
   }

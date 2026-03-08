@@ -125,7 +125,7 @@ describe('WhisperProvider', () => {
       provider.stop();
       await mockMediaRecorder.onstop?.();
 
-      expect(mockServiceInstance.transcribe).toHaveBeenCalledWith(expect.any(Blob));
+      expect(mockServiceInstance.transcribe).toHaveBeenCalledWith(expect.any(Blob), undefined, expect.any(String));
       expect(onResult).toHaveBeenCalledWith({ transcript: 'Hello world', isFinal: true });
       expect(onEnd).toHaveBeenCalled();
     });
@@ -203,7 +203,7 @@ describe('WhisperProvider', () => {
       const secondRecorder = makeMockRecorder();
       MediaRecorderMock.mockImplementationOnce(function () { return secondRecorder; });
 
-      vi.advanceTimersByTime(30_000);
+      vi.advanceTimersByTime(15_000);
 
       // Interval triggers rotateRecorder: old stop + new MediaRecorder created
       expect(mockMediaRecorder.stop).toHaveBeenCalled();

@@ -13,6 +13,7 @@ export class WhisperProvider implements ISpeechProvider {
   private errorCallback: ((error: string) => void) | null = null;
   private endCallback: (() => void) | null = null;
 
+  private language: LanguageCode | null = null;
   private stream: MediaStream | null = null;
   private currentRecorder: MediaRecorder | null = null;
   private chunkTimer: ReturnType<typeof setInterval> | null = null;
@@ -60,7 +61,8 @@ export class WhisperProvider implements ISpeechProvider {
     this.endCallback = callback;
   }
 
-  async start(_language: LanguageCode): Promise<void> {
+  async start(language: LanguageCode): Promise<void> {
+    this.language = language;
     this.aborted = false;
     this.isStopped = false;
     this.pendingTranscriptions = 0;
@@ -95,7 +97,7 @@ export class WhisperProvider implements ISpeechProvider {
 
       this.transcriptionQueue = this.transcriptionQueue.then(async () => {
         try {
-          const transcript = await this.service.transcribe(audioBlob);
+          const transcript = await this.service.transcribe(audioBlob, undefined, this.language ?? undefined);
           this.resultCallback?.({ transcript, isFinal: true });
         } catch (err) {
           this.errorCallback?.(err instanceof Error ? err.message : String(err));

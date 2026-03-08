@@ -1,67 +1,59 @@
 import { useRef, useState } from 'react';
 import { Upload, AlertCircle, RefreshCw, FileAudio } from 'lucide-react';
+import { AssemblyAIService } from './assemblyai.service';
+import { useRecordingStore } from '@/hooks/useRecordingStore';
+import { useLanguageStore } from '@/hooks/useLanguageStore';
+import { STORAGE_KEYS } from '@/constants/config';
+import { DEFAULT_ASSEMBLYAI_MODEL, type AssemblyAIModel } from '@/constants/assemblyai-config';
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
-import { WhisperService } from './whisper.service';
-import { useRecordingStore } from '@/hooks/useRecordingStore';
-import { WHISPER_MODELS, DEFAULT_WHISPER_MODEL_SIZE, type WhisperModelSize } from '@/constants/whisper-config';
-import { STORAGE_KEYS } from '@/constants/config';
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
-const loadWhisperModelSize = (): WhisperModelSize =>
-  (localStorage.getItem(STORAGE_KEYS.WHISPER_MODEL_SIZE) as WhisperModelSize) ?? DEFAULT_WHISPER_MODEL_SIZE;
+const loadAssemblyAIKey = (): string =>
+  localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_API_KEY) ?? '';
 
-const whisperLoadedKey = (modelId: string) => `speak-doc:whisper-loaded:${modelId}`;
-const isWhisperModelCached = (modelId: string) => localStorage.getItem(whisperLoadedKey(modelId)) === '1';
+const loadAssemblyAIModel = (): AssemblyAIModel =>
+  (localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_MODEL) as AssemblyAIModel) ?? DEFAULT_ASSEMBLYAI_MODEL;
 
 interface AudioFileImporterProps {
   onTranscriptionComplete: (text: string) => void;
 }
 
-type Phase = 'idle' | 'loading' | 'transcribing';
+type Phase = 'idle' | 'transcribing';
 
 export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporterProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const serviceRef = useRef(new WhisperService());
+  const serviceRef = useRef(new AssemblyAIService());
   const { appendTranscription, reset, setStatus } = useRecordingStore();
+  const { speakingLanguage } = useLanguageStore();
   const [phase, setPhase] = useState<Phase>('idle');
-  const [loadProgress, setLoadProgress] = useState(0);
   const [localError, setLocalError] = useState<string | null>(null);
   const [lastFile, setLastFile] = useState<File | null>(null);
-  const [liveText, setLiveText] = useState('');
 
-  const modelSize = loadWhisperModelSize();
-  const { modelId } = WHISPER_MODELS[modelSize];
-
-  // Reactive — updated after a successful first load within this session
-  const [isWhisperLoaded, setIsWhisperLoaded] = useState(
-    () => serviceRef.current.isLoaded() || isWhisperModelCached(modelId),
-  );
+  const apiKey = loadAssemblyAIKey();
+  const isConfigured = apiKey.length > 0;
 
   const transcribeFile = async (file: File) => {
+    const key = loadAssemblyAIKey();
+    if (!key) {
+      setLocalError('AssemblyAI API key not set. Please configure it in Settings.');
+      return;
+    }
+
     reset();
     setLocalError(null);
-    setLiveText('');
 
     try {
-      if (!serviceRef.current.isLoaded()) {
-        setPhase('loading');
-        setLoadProgress(0);
-        await serviceRef.current.load(modelSize, (pct) =>
-          setLoadProgress((prev) => Math.max(prev, Math.round(pct))),
-        );
-        setIsWhisperLoaded(true);
-      }
-
+      serviceRef.current.configure(key);
       setPhase('transcribing');
-      const text = await serviceRef.current.transcribe(file, (chunk) => {
-        setLiveText((prev) => (prev ? `${prev} ${chunk}` : chunk));
-      });
-      setLiveText('');
+
+      const model = loadAssemblyAIModel();
+      const text = await serviceRef.current.transcribe(file, speakingLanguage, model);
+
       appendTranscription(text, true);
       setStatus('done');
       onTranscriptionComplete(text);
@@ -71,7 +63,6 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
       setStatus('idle');
     } finally {
       setPhase('idle');
-      setLoadProgress(0);
     }
   };
 
@@ -96,21 +87,12 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
   };
 
   const isBusy = phase !== 'idle';
-  const buttonLabel =
-    phase === 'loading'
-      ? `Loading model… ${loadProgress > 0 ? `${loadProgress}%` : ''}`
-      : phase === 'transcribing'
-        ? 'Transcribing…'
-        : 'Import Audio File';
-
-  const tooltip = !isWhisperLoaded
-    ? 'Audio file import requires the Whisper model. Load it in Settings first, or it will be downloaded automatically on first import.'
-    : undefined;
+  const buttonLabel = phase === 'transcribing' ? 'Transcribing…' : 'Import Audio File';
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <div title={tooltip}>
+        <div title={!isConfigured ? 'Set your AssemblyAI API key in Settings to use file import' : undefined}>
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -178,33 +160,8 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
         </div>
       )}
 
-      {phase === 'loading' && loadProgress > 0 && (
-        <div
-          className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"
-          aria-hidden="true"
-        >
-          <div
-            className="h-full rounded-full bg-blue-500 transition-all duration-300"
-            style={{ width: `${loadProgress}%` }}
-            role="progressbar"
-            aria-valuenow={loadProgress}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`Loading model: ${loadProgress}%`}
-          />
-        </div>
-      )}
-
       {phase === 'transcribing' && (
-        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-3">
-          {liveText ? (
-            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-              {liveText}
-            </p>
-          ) : (
-            <p className="text-xs text-slate-400 dark:text-slate-500 italic">Processing audio…</p>
-          )}
-        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500 italic">Processing audio via AssemblyAI…</p>
       )}
 
       {localError && (
@@ -214,10 +171,10 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
         </p>
       )}
 
-      {!isWhisperLoaded && !localError && (
+      {!isConfigured && !localError && (
         <p className="flex items-center gap-1.5 text-xs text-slate-500">
           <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-          Whisper model not cached — it will be downloaded automatically on first import.
+          AssemblyAI API key not configured — set it in Settings to use file import.
         </p>
       )}
     </div>

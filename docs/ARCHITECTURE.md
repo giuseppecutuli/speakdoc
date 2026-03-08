@@ -11,8 +11,8 @@ Fully client-side single-page application. No backend. All processing in the bro
 Browser (Chrome 123+)
 ├── React 18 + TypeScript + Vite
 ├── Speech Layer: ISpeechProvider (pluggable)
-│   ├── WebSpeechProvider  → Web Speech API (default)
-│   └── WhisperProvider    → whisper.cpp via WebAssembly (offline, high accuracy)
+│   ├── WebSpeechProvider    → Web Speech API (default, real-time)
+│   └── AssemblyAIProvider   → AssemblyAI cloud API (high accuracy, requires API key)
 ├── AI Layer: window.ai (Gemini Nano) → OpenAI-compatible API (fallback)
 ├── State: Zustand stores
 ├── Persistence: Dexie.js (IndexedDB) + localStorage
@@ -250,12 +250,12 @@ The voice-input feature uses a **pluggable provider abstraction** to support mul
 
 ```typescript
 // src/features/voice-input/types/speech-provider.ts
-export type SpeechProviderName = 'web-speech' | 'whisper';
+export type SpeechProviderName = 'web-speech' | 'assemblyai';
 
 export interface ISpeechProvider {
   readonly name: SpeechProviderName;
   isAvailable(): boolean;          // Synchronous feature detection
-  isConfigured(): boolean;         // Synchronous config / model check
+  isConfigured(): boolean;         // Synchronous config / API key check
   start(language: LanguageCode): void;
   stop(): void;
   abort(): void;
@@ -275,25 +275,24 @@ export interface ISpeechProvider {
 - **Config**: None required
 - **Path**: `src/features/voice-input/providers/WebSpeechProvider.ts`
 
-#### WhisperProvider (via WebAssembly)
-- **Status**: ✅ Phase 1b Complete + Bug Fixes Applied
-- **Technology**: whisper.cpp compiled to WASM, runs 100% in the browser — no server needed
-- **Library**: `@xenova/transformers` v3+ (battle-tested WASM wrapper for Whisper models)
-- **Availability**: Any browser with WebAssembly support (Chrome, Firefox, Edge, Safari)
-- **Accuracy**: ~95–99% (state-of-the-art)
-- **Latency**: ~5–30 sec per recording (CPU-bound, device-dependent)
-- **Config**: Model download on first use — tiny (~45 MB), base (~75 MB), small (~150 MB)
-- **Caching**: Model cached in IndexedDB via Dexie after first download (with localStorage persistence marker)
+#### AssemblyAIProvider (cloud STT)
+- **Status**: 🔲 Phase 1b replacement (replaces Whisper WASM)
+- **Technology**: AssemblyAI REST API called directly from the browser via `assemblyai` npm SDK
+- **Library**: `assemblyai` (browser-compatible; uses `fetch` internally)
+- **Availability**: Any browser with `fetch` + `MediaRecorder` support; requires internet connection
+- **Accuracy**: ~95–99% (universal-3-pro / universal-2 models)
+- **Latency**: ~2–10 sec after recording stops (cloud processing)
+- **Config**: User provides AssemblyAI API key in Settings (stored in localStorage)
 - **Components**:
-  - `src/features/voice-input/providers/WhisperProvider.ts` — implements ISpeechProvider, MediaRecorder-based capture, transcription via WhisperService
-  - `src/features/voice-input/whisper.service.ts` — wraps @xenova/transformers pipeline, lifecycle management (load/transcribe/unload), with progress guard (only process numeric progress events)
-  - `src/features/voice-input/whisper-model-cache.ts` — IndexedDB storage for downloaded models
-- **Storage**: `src/utils/db.ts` — WhisperModelRecord type, whisperModels table (Dexie v2)
-- **Reliability Improvements**:
-  - **Bug Fix 1 — Model cache persistence** (localStorage + Settings.tsx): After page refresh, UI now correctly detects cached model and skips "Download" button. Marker key `speak-doc:whisper-loaded:{modelId}` persisted to localStorage; `WhisperModelSection` initial `loadState` derives from this marker; `markWhisperModelCached()` called after successful download.
-  - **Bug Fix 2 — Progress bar accuracy** (whisper.service.ts + Settings.tsx): Only processes `progress` events with numeric `event.progress` field (guards against `undefined`, `NaN`). UI progress updates use `Math.max(prev, Math.round(pct))` to prevent backward jumps when multiple model files are downloaded sequentially.
+  - `src/features/voice-input/providers/AssemblyAIProvider.ts` — implements ISpeechProvider; MediaRecorder capture → blob → SDK transcription
+  - `src/features/voice-input/assemblyai.service.ts` — wraps `client.transcripts.transcribe()`; handles language code mapping and error normalization
+  - `src/constants/assemblyai-config.ts` — API models, language code mapping (`en`→`en_us`, `it`→`it_it`)
+  - `src/components/AssemblyAIGuide.tsx` — collapsible step-by-step guide for obtaining an API key
+- **Language mapping**: App codes (`en`/`it`) → AssemblyAI codes (`en_us`/`it_it`)
+- **Models**: `universal-3-pro` (highest accuracy), `universal-2` (default, fast)
+- **No model download**: API key is enough; no local binary, no IndexedDB model cache needed
 
-> **Why WASM?** whisper.cpp can be compiled to WebAssembly, allowing it to run directly in the browser tab with no backend. `@xenova/transformers` provides a ready-to-use JS/WASM bundle with quantized Whisper models.
+> **Why AssemblyAI over Whisper WASM?** Whisper WASM required downloading 45–150 MB model files, was CPU-bound (5–30 sec on average hardware), and couldn't be interrupted. AssemblyAI delivers equivalent accuracy in 2–10 sec via cloud inference with no local setup beyond an API key.
 
 ### Provider Selection Logic
 
@@ -303,7 +302,7 @@ class SpeechProviderManager {
   // Accepts provider array in constructor for dependency injection (testing)
   constructor(providers: ISpeechProvider[] = [
     new WebSpeechProvider(),
-    new WhisperProvider(),
+    new AssemblyAIProvider(),
   ]) { ... }
 
   // User-preferred provider name comes from settings localStorage (Phase 1b)
@@ -333,7 +332,7 @@ export const getLanguageCodeForProvider = (
   provider: SpeechProviderName,
 ): string => {
   switch (provider) {
-    case 'whisper':    return language;                              // ISO 639-1 ('it')
+    case 'assemblyai': return ASSEMBLYAI_LANGUAGE_MAP[language]; // 'en_us' | 'it_it'
     case 'web-speech':
     default:           return SUPPORTED_LANGUAGES[language].speechCode; // BCP 47 ('it-IT')
   }
@@ -342,36 +341,31 @@ export const getLanguageCodeForProvider = (
 
 ### Settings Integration
 
-**Phase 1b Implementation:**
+**Phase 1b replacement — AssemblyAI:**
 
 ```typescript
 // src/constants/config.ts
 export const STORAGE_KEYS = {
-  SPEECH_PROVIDER: 'speechProvider',         // 'web-speech' | 'whisper' | 'auto'
-  WHISPER_MODEL_SIZE: 'whisperModelSize',   // 'tiny' | 'base' | 'small'
+  SPEECH_PROVIDER: 'speechProvider',           // 'web-speech' | 'assemblyai' | 'auto'
+  ASSEMBLYAI_API_KEY: 'speak-doc:assemblyai-api-key',
+  ASSEMBLYAI_MODEL: 'speak-doc:assemblyai-model', // 'universal-3-pro' | 'universal-2'
   // ... other keys
 };
 
-// src/constants/whisper-config.ts
-export type WhisperModelSize = 'tiny' | 'base' | 'small';
-export const WHISPER_MODELS: Record<WhisperModelSize, {
-  modelId: string;
-  label: string;
-  approxSize: string;
-}> = {
-  tiny:  { modelId: 'Xenova/whisper-tiny', label: 'Tiny (~45 MB)', approxSize: '45 MB' },
-  base:  { modelId: 'Xenova/whisper-base', label: 'Base (~75 MB)', approxSize: '75 MB' },
-  small: { modelId: 'Xenova/whisper-small', label: 'Small (~150 MB)', approxSize: '150 MB' },
+// src/constants/assemblyai-config.ts
+export const ASSEMBLYAI_LANGUAGE_MAP: Record<LanguageCode, string> = {
+  en: 'en_us',
+  it: 'it_it',
 };
-export const DEFAULT_WHISPER_MODEL_SIZE: WhisperModelSize = 'base';
-export const WHISPER_LOAD_TIMEOUT_MS = 120000;
+export const ASSEMBLYAI_MODELS = ['universal-3-pro', 'universal-2'] as const;
+export type AssemblyAIModel = typeof ASSEMBLYAI_MODELS[number];
+export const DEFAULT_ASSEMBLYAI_MODEL: AssemblyAIModel = 'universal-2';
 ```
 
-**UI enhancements in `src/components/Settings.tsx`:**
-- Speech Recognition section with provider dropdown (Auto / Web Speech API / Whisper)
-- Model size selector (Tiny / Base / Small)
-- Download progress bar with % and size display
-- "Clear Model Cache" button
+**UI in `src/components/Settings.tsx`:**
+- Speech Recognition section with provider dropdown (Auto / Web Speech API / AssemblyAI)
+- AssemblyAI API key input (shown when provider is `assemblyai` or `auto`)
+- `AssemblyAIGuide` component — collapsible step-by-step instructions for getting an API key
 - Active provider badge in recording UI
 
 ### Updated Data Flow
@@ -471,7 +465,6 @@ All services consume `sessionRepository` from this file — never instantiate re
 class DocAssistantDB extends Dexie {
   sessions!: Table<DocumentationSession>;
   feedback!: Table<SessionFeedback>;
-  whisperModels!: Table<WhisperModelRecord>;  // Phase 1b
   drafts!: Table<SessionDraft>;               // Phase 6.2
 
   constructor() {
@@ -479,12 +472,12 @@ class DocAssistantDB extends Dexie {
     this.version(2).stores({
       sessions: '++id, speakingLanguage, outputLanguage, format, createdAt',
       feedback: '++id, sessionId, rating, createdAt',
-      whisperModels: 'modelId, downloadedAt',
     });
     this.version(3).stores({
-      // sessions, feedback, whisperModels unchanged
+      // sessions, feedback unchanged
       drafts: '++id, savedAt',               // Phase 6.2: single active draft
     });
+    // Note: whisperModels table (v2) removed — AssemblyAI needs no local model cache
   }
 }
 
@@ -511,13 +504,6 @@ interface SessionDraft {
   savedAt: Date;
 }
 
-// Phase 1b: Whisper model cache
-interface WhisperModelRecord {
-  modelId: string;                    // e.g., 'Xenova/whisper-base'
-  modelSize: WhisperModelSize;        // 'tiny' | 'base' | 'small'
-  data: ArrayBuffer;                  // Binary WASM model
-  downloadedAt: Date;
-}
 ```
 
 ---
@@ -769,12 +755,12 @@ npm run build           # Output: doc-assistant/dist/
 
 ## Browser Compatibility
 
-| Browser | Web Speech | Whisper (WASM) | Gemini Nano | External API | Notes |
+| Browser | Web Speech | AssemblyAI | Gemini Nano | External API | Notes |
 |---|---|---|---|---|---|
 | Chrome 123+ | ✓ | ✓ | ✓ (flag needed) | ✓ | Full support |
 | Chrome < 123 | ✓ | ✓ | ✗ | ✓ | No built-in AI |
 | Edge (Chromium) | ✓ | ✓ | ✗ | ✓ | No Gemini Nano |
 | Firefox | ✓ | ✓ | ✗ | ✓ | Web Speech limited |
-| Safari | ⚠ | ✓ | ✗ | ✓ | iOS restrictions on Web Speech; WASM works |
+| Safari | ⚠ | ✓ | ✗ | ✓ | iOS restrictions on Web Speech; AssemblyAI works |
 
-> **Whisper WASM** works in any browser with WebAssembly support (all modern browsers). First use requires a model download (45–150 MB). Subsequent uses load from IndexedDB cache.
+> **AssemblyAI** works in any browser with `fetch` + `MediaRecorder` support (all modern browsers). Requires an internet connection and a user-provided API key. No model downloads needed.

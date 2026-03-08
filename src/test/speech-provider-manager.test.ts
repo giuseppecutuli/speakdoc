@@ -56,7 +56,7 @@ describe('SpeechProviderManager', () => {
     });
 
     it('skips unavailable providers in fallback chain', () => {
-      const unavailable = makeProvider('whisper', false, false);
+      const unavailable = makeProvider('assemblyai', false, false);
       const fallback = makeProvider('web-speech');
       const manager = new SpeechProviderManager([unavailable, fallback]);
 
@@ -67,20 +67,20 @@ describe('SpeechProviderManager', () => {
 
     it('returns preferred provider when available', () => {
       const webSpeech = makeProvider('web-speech');
-      const whisper = makeProvider('whisper');
+      const whisper = makeProvider('assemblyai');
       const manager = new SpeechProviderManager([webSpeech, whisper]);
 
-      const selected = manager.selectBestProvider('whisper');
+      const selected = manager.selectBestProvider('assemblyai');
 
       expect(selected).toBe(whisper);
     });
 
     it('falls back to next available when preferred is unavailable', () => {
       const webSpeech = makeProvider('web-speech');
-      const unavailableWhisper = makeProvider('whisper', false);
+      const unavailableWhisper = makeProvider('assemblyai', false);
       const manager = new SpeechProviderManager([webSpeech, unavailableWhisper]);
 
-      const selected = manager.selectBestProvider('whisper');
+      const selected = manager.selectBestProvider('assemblyai');
 
       expect(selected).toBe(webSpeech);
     });

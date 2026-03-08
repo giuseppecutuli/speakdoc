@@ -1,16 +1,9 @@
 import Dexie, { type Table } from 'dexie';
 import type { DocumentationSession, SessionFeedback, SessionDraft } from '@/types/session';
 
-export interface WhisperModelRecord {
-  modelId: string;
-  data: ArrayBuffer;
-  cachedAt: number;
-}
-
 class DocAssistantDB extends Dexie {
   sessions!: Table<DocumentationSession>;
   feedback!: Table<SessionFeedback>;
-  whisperModels!: Table<WhisperModelRecord>;
   drafts!: Table<SessionDraft>;
 
   constructor() {
@@ -28,6 +21,12 @@ class DocAssistantDB extends Dexie {
       sessions: '++id, speakingLanguage, outputLanguage, format, createdAt',
       feedback: '++id, sessionId, rating, createdAt',
       whisperModels: 'modelId, cachedAt',
+      drafts: '++id, savedAt',
+    });
+    this.version(4).stores({
+      sessions: '++id, speakingLanguage, outputLanguage, format, createdAt',
+      feedback: '++id, sessionId, rating, createdAt',
+      whisperModels: null,
       drafts: '++id, savedAt',
     });
   }

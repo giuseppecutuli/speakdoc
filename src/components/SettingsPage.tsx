@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, AlertCircle, Download, Trash2 } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Download, Trash2, Eye, EyeOff } from 'lucide-react';
 import { loadAIConfig, saveAIConfig } from '@/features/ai-integration/external-api.service';
 import { isGeminiNanoAvailable } from '@/features/ai-integration/gemini-nano.service';
 import { BackendBadge } from '@/features/ai-integration/BackendBadge';
 import { GeminiNanoGuide } from '@/features/ai-integration/GeminiNanoGuide';
-import { WhisperModelSection } from '@/features/voice-input/WhisperModelSection';
+import { AssemblyAIGuide } from '@/components/AssemblyAIGuide';
 import type { AIBackend } from '@/types/ai';
 import { STORAGE_KEYS } from '@/constants/config';
 import type { SpeechProviderName } from '@/features/voice-input/types/speech-provider';
+import { ASSEMBLYAI_MODELS, DEFAULT_ASSEMBLYAI_MODEL, type AssemblyAIModel } from '@/constants/assemblyai-config';
 import { sessionRepository, feedbackRepository } from '@/utils/repositories';
 
 type SpeechPreference = 'auto' | SpeechProviderName;
 
 const PROVIDER_OPTIONS: { value: SpeechPreference; label: string; description: string }[] = [
-  { value: 'auto', label: 'Auto', description: 'Use Web Speech API when available, fall back to Whisper' },
+  { value: 'auto', label: 'Auto', description: 'Use Web Speech API when available, fall back to AssemblyAI' },
   { value: 'web-speech', label: 'Web Speech API', description: 'Browser built-in — online, real-time' },
-  { value: 'whisper', label: 'Whisper (offline)', description: 'Local WASM model — works without internet' },
+  { value: 'assemblyai', label: 'AssemblyAI', description: 'Cloud transcription — high accuracy (~97%), requires API key' },
 ];
 
 const loadSpeechPreference = (): SpeechPreference =>
@@ -23,6 +24,18 @@ const loadSpeechPreference = (): SpeechPreference =>
 
 const saveSpeechPreference = (value: SpeechPreference) =>
   localStorage.setItem(STORAGE_KEYS.SPEECH_PROVIDER, value);
+
+const loadAssemblyAIKey = (): string =>
+  localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_API_KEY) ?? '';
+
+const saveAssemblyAIKey = (key: string) =>
+  localStorage.setItem(STORAGE_KEYS.ASSEMBLYAI_API_KEY, key);
+
+const loadAssemblyAIModel = (): AssemblyAIModel =>
+  (localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_MODEL) as AssemblyAIModel) ?? DEFAULT_ASSEMBLYAI_MODEL;
+
+const saveAssemblyAIModel = (model: AssemblyAIModel) =>
+  localStorage.setItem(STORAGE_KEYS.ASSEMBLYAI_MODEL, model);
 
 interface SettingsPageProps {
   onBack: () => void;
@@ -35,6 +48,10 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
   const [activeBackend, setActiveBackend] = useState<AIBackend>('none');
   const [saved, setSaved] = useState(false);
   const [speechPreference, setSpeechPreference] = useState<SpeechPreference>(loadSpeechPreference);
+  const [assemblyAIKey, setAssemblyAIKey] = useState(loadAssemblyAIKey);
+  const [assemblyAIModel, setAssemblyAIModel] = useState<AssemblyAIModel>(loadAssemblyAIModel);
+  const [showAssemblyAIKey, setShowAssemblyAIKey] = useState(false);
+  const [assemblyAISaved, setAssemblyAISaved] = useState(false);
   const [clearState, setClearState] = useState<'idle' | 'clearing' | 'cleared'>('idle');
 
   useEffect(() => {
@@ -51,6 +68,13 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
   const handleSpeechPreferenceChange = (value: SpeechPreference) => {
     setSpeechPreference(value);
     saveSpeechPreference(value);
+  };
+
+  const handleAssemblyAISave = () => {
+    saveAssemblyAIKey(assemblyAIKey.trim());
+    saveAssemblyAIModel(assemblyAIModel);
+    setAssemblyAISaved(true);
+    setTimeout(() => setAssemblyAISaved(false), 2000);
   };
 
   const handleSave = () => {
@@ -119,7 +143,57 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
               {PROVIDER_OPTIONS.find((o) => o.value === speechPreference)?.description}
             </p>
           </div>
-          {(speechPreference === 'whisper' || speechPreference === 'auto') && <WhisperModelSection />}
+        </section>
+
+        {/* AssemblyAI Configuration */}
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm space-y-4">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">AssemblyAI Configuration</h2>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">API Key</label>
+            <div className="relative">
+              <input
+                type={showAssemblyAIKey ? 'text' : 'password'}
+                value={assemblyAIKey}
+                onChange={(e) => setAssemblyAIKey(e.target.value)}
+                placeholder="Enter your AssemblyAI API key"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                data-testid="assemblyai-api-key-input"
+              />
+              <button
+                type="button"
+                onClick={() => setShowAssemblyAIKey((v) => !v)}
+                className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                aria-label={showAssemblyAIKey ? 'Hide API key' : 'Show API key'}
+              >
+                {showAssemblyAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Model</label>
+            <select
+              value={assemblyAIModel}
+              onChange={(e) => setAssemblyAIModel(e.target.value as AssemblyAIModel)}
+              className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              data-testid="assemblyai-model-select"
+            >
+              {ASSEMBLYAI_MODELS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={handleAssemblyAISave}
+            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+            data-testid="assemblyai-save-button"
+          >
+            {assemblyAISaved ? '✓ Saved' : 'Save AssemblyAI Settings'}
+          </button>
+
+          <AssemblyAIGuide />
         </section>
 
         {/* AI Backend */}

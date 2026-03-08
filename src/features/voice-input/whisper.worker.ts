@@ -1,16 +1,17 @@
 /// <reference lib="webworker" />
-import { pipeline, env } from '@xenova/transformers';
+import {
+  pipeline,
+  env,
+  TextStreamer,
+  type AutomaticSpeechRecognitionPipeline,
+  type ProgressCallback,
+} from '@huggingface/transformers';
 import type { WhisperModelSize } from '@/constants/whisper-config';
 
-// Disable local model lookup — always fetch from Hugging Face Hub
+// Always fetch from Hugging Face Hub, never from local paths
 env.allowLocalModels = false;
 
-type TranscriberPipeline = (
-  audio: Float32Array,
-  opts?: Record<string, unknown>,
-) => Promise<{ text: string }>;
-
-let pipe: TranscriberPipeline | null = null;
+let pipe: AutomaticSpeechRecognitionPipeline | null = null;
 let loadedSize: WhisperModelSize | null = null;
 
 self.addEventListener('message', async (event: MessageEvent) => {
@@ -28,16 +29,16 @@ self.addEventListener('message', async (event: MessageEvent) => {
     loadedSize = null;
 
     try {
-      const loaded = await pipeline('automatic-speech-recognition', modelId, {
-        progress_callback: (e: { status?: string; progress?: number }) => {
-          console.log(e);
-          if (e.status === 'progress' && typeof e.progress === 'number' && !isNaN(e.progress)) {
-            self.postMessage({ type: 'load:progress', payload: e.progress });
-          }
-        },
+      const onProgress: ProgressCallback = (e) => {
+        if (e.status === 'progress') {
+          self.postMessage({ type: 'load:progress', payload: e.progress });
+        }
+      };
+      // @ts-ignore
+      pipe = await pipeline('automatic-speech-recognition', modelId, {
+        progress_callback: onProgress,
       });
 
-      pipe = loaded as unknown as TranscriberPipeline;
       loadedSize = size;
       self.postMessage({ type: 'load:done' });
     } catch (err) {
@@ -47,7 +48,7 @@ self.addEventListener('message', async (event: MessageEvent) => {
       });
     }
   } else if (type === 'transcribe') {
-    const { id, buffer } = payload as { id: number; buffer: ArrayBuffer };
+    const { id, buffer, language } = payload as { id: number; buffer: ArrayBuffer; language?: string };
 
     if (!pipe) {
       self.postMessage({ type: 'transcribe:error', id, payload: 'WhisperService: not loaded' });
@@ -56,17 +57,29 @@ self.addEventListener('message', async (event: MessageEvent) => {
 
     try {
       const float32 = new Float32Array(buffer);
-      const result = await pipe(float32, {
-        sampling_rate: 16000,
-        chunk_length_s: 30,
-        stride_length_s: 5,
-        chunk_callback: (chunk: { text: string }) => {
-          console.log('Chunk callback:', chunk);
-          const text = chunk.text?.trim();
-          if (text) self.postMessage({ type: 'transcribe:chunk', id, payload: text });
+
+      // Stream decoded tokens in real-time as Whisper processes each 30s audio window.
+      // Chunks are UX-only — the final authoritative text comes from result.text which
+      // handles stride overlap deduplication across windows correctly.
+      const streamer = new TextStreamer(pipe.tokenizer, {
+        skip_prompt: true,
+        skip_special_tokens: true,
+        callback_function: (text: string) => {
+          const trimmed = text.trim();
+          if (trimmed) self.postMessage({ type: 'transcribe:chunk', id, payload: trimmed });
         },
       });
-      self.postMessage({ type: 'transcribe:done', id, payload: result.text.trim() });
+
+      const result = await pipe(float32, {
+        chunk_length_s: 30,
+        stride_length_s: 5,
+        language: language ?? 'en',
+        streamer,
+      });
+
+      // result is always a single object when called with a Float32Array (not an array)
+      const output = Array.isArray(result) ? result[0] : result;
+      self.postMessage({ type: 'transcribe:done', id, payload: output.text.trim() });
     } catch (err) {
       console.log(err);
       self.postMessage({

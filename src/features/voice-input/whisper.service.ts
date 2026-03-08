@@ -56,7 +56,7 @@ export class WhisperService {
     });
   }
 
-  async transcribe(audioBlob: Blob, onChunk?: (text: string) => void): Promise<string> {
+  async transcribe(audioBlob: Blob, onChunk?: (text: string) => void, language?: string): Promise<string> {
     if (!this.loadedSize) throw new Error('WhisperService: not loaded');
 
     // Decode compressed audio (mp3, m4a, webm, wav…) and resample to 16 kHz PCM.
@@ -103,7 +103,7 @@ export class WhisperService {
 
       worker.addEventListener('message', handler);
       worker.postMessage(
-        { type: 'transcribe', payload: { id, buffer: transferBuffer } },
+        { type: 'transcribe', payload: { id, buffer: transferBuffer, language } },
         [transferBuffer],
       );
     });

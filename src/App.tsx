@@ -11,6 +11,7 @@ import { TemplateSelector } from '@/features/documentation-generation/TemplateSe
 import { LearningPanel } from '@/features/learning/LearningPanel';
 import { SessionHistory } from '@/features/learning/SessionHistory';
 import { AudioFileImporter } from '@/features/voice-input/AudioFileImporter';
+import { TextPasteInput } from '@/features/voice-input/TextPasteInput';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { SUPPORTED_LANGUAGES } from '@/constants/languages';
 import { STORAGE_KEYS } from '@/constants/config';
@@ -138,8 +139,11 @@ export const App = () => {
             </div>
           </div>
           <VoiceRecorder onTranscriptionComplete={generate} />
-          <div className="mt-4 border-t border-slate-100 pt-4">
+          <div className="mt-4 border-t border-slate-100 dark:border-slate-700 pt-4 flex flex-col gap-4">
             <AudioFileImporter onTranscriptionComplete={generate} />
+            <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
+              <TextPasteInput onTranscriptionComplete={generate} />
+            </div>
           </div>
         </div>
 

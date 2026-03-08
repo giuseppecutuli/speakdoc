@@ -7,6 +7,8 @@ interface DocumentationState {
   selectedFormat: OutputFormat;
   isGenerating: boolean;
   error: string | null;
+  savedToHistory: boolean;
+  lastSavedSessionId: number | null;
   history: string[];       // undo stack: snapshots before AI edits, newest at END
   historyIndex: number;    // = history.length - 1 when at tip; tracks position
   redoStack: string[];     // redo stack: states to forward to on redo, newest at END
@@ -22,6 +24,8 @@ interface DocumentationActions {
   setFormattedOutput: (text: string) => void;
   setGenerating: (generating: boolean) => void;
   setError: (error: string | null) => void;
+  setSavedToHistory: (saved: boolean) => void;
+  setLastSavedSessionId: (id: number | null) => void;
   reset: () => void;
   pushHistory: (content: string) => void;
   undo: () => void;
@@ -35,6 +39,8 @@ const initialState: DocumentationState = {
   selectedFormat: 'markdown',
   isGenerating: false,
   error: null,
+  savedToHistory: false,
+  lastSavedSessionId: null,
   history: [],
   historyIndex: -1,
   redoStack: [],
@@ -58,6 +64,10 @@ export const useDocumentationStore = create<DocumentationState & DocumentationAc
   setGenerating: (generating) => set({ isGenerating: generating }),
 
   setError: (error) => set({ error }),
+
+  setSavedToHistory: (saved) => set({ savedToHistory: saved }),
+
+  setLastSavedSessionId: (id) => set({ lastSavedSessionId: id }),
 
   reset: () => set({ ...initialState }),
 

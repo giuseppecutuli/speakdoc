@@ -1,6 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs';
-import { Copy, RefreshCw, CheckCheck, Undo2, Redo2, Wand2 } from 'lucide-react';
+import { Copy, RefreshCw, CheckCheck, Undo2, Redo2, Wand2, BookmarkCheck, Pencil, Check } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { sessionRepository } from '@/utils/repositories';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
 import { applyFormat } from './doc-generator.service';
 import { cn } from '@/utils/cn';
@@ -24,6 +25,8 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
     rawAIResponse,
     selectedFormat,
     isGenerating,
+    savedToHistory,
+    lastSavedSessionId,
     setFormat,
     setFormattedOutput,
     canUndo,
@@ -37,6 +40,10 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
   const [editedContent, setEditedContent] = useState('');
   const [copied, setCopied] = useState(false);
   const [improveModalOpen, setImproveModalOpen] = useState(false);
+  const [sessionName, setSessionName] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [savedName, setSavedName] = useState('');
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -56,6 +63,23 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
       clearPendingRestore();
     }
   }, [pendingRestore, setFormattedOutput, clearPendingRestore]);
+
+  useEffect(() => {
+    if (isEditingName) nameInputRef.current?.focus();
+  }, [isEditingName]);
+
+  const handleSaveName = async () => {
+    if (!lastSavedSessionId) return;
+    const trimmed = sessionName.trim();
+    await sessionRepository.update(lastSavedSessionId, { name: trimmed || undefined });
+    setSavedName(trimmed);
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSaveName();
+    if (e.key === 'Escape') { setSessionName(savedName); setIsEditingName(false); }
+  };
 
   const handleFormatChange = (format: string) => {
     const f = format as OutputFormat;
@@ -95,7 +119,47 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Generated Documentation</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Generated Documentation</h3>
+          {savedToHistory && (
+            <span className="flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+              <BookmarkCheck className="h-3 w-3" />
+              Saved to history
+            </span>
+          )}
+          {savedToHistory && lastSavedSessionId && (
+            <div className="flex items-center gap-1">
+              {isEditingName ? (
+                <>
+                  <input
+                    ref={nameInputRef}
+                    value={sessionName}
+                    onChange={(e) => setSessionName(e.target.value)}
+                    onKeyDown={handleNameKeyDown}
+                    placeholder="Session name…"
+                    className="rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-40"
+                  />
+                  <button
+                    onClick={handleSaveName}
+                    className="rounded p-0.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                    aria-label="Save session name"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => { setSessionName(savedName); setIsEditingName(true); }}
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  title="Name this session"
+                >
+                  <Pencil className="h-3 w-3" />
+                  {savedName || 'Name session'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {/* Undo / Redo */}
           <button

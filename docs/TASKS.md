@@ -398,6 +398,9 @@ _Add offline, high-accuracy speech-to-text via whisper.cpp running in the browse
 - [x] Actions per session: view full doc, copy to clipboard, re-export in different format
 - [x] Integrate with `sessionRepository.getRecent(50)` from Phase 4.2
 - [x] Unit tests: session list rendering, action callbacks
+- [ ] Show session doc size (KB) in the metadata badges
+- [ ] Delete button per session row — calls `sessionRepository.delete(id)`, removes from local state optimistically; confirm via `window.confirm` or inline trash icon with double-click UX
+- [ ] Add `delete(id: number): Promise<void>` to `ISessionRepository` + `IndexedDBSessionRepository`
 
 **Agent:** `learning-engine-dev` | **Complexity:** MEDIUM | **Risk:** LOW
 

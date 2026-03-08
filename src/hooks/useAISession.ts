@@ -17,7 +17,7 @@ import { AINotConfiguredError } from '@/types/ai';
  */
 export const useAISession = () => {
   const { speakingLanguage, outputLanguage } = useLanguageStore();
-  const { selectedFormat, appendRawResponse, setGenerating, setError, reset } =
+  const { selectedFormat, appendRawResponse, setGenerating, setError, setSavedToHistory, setLastSavedSessionId, reset } =
     useDocumentationStore();
   const { selectedTemplateId } = useTemplateStore();
 
@@ -46,7 +46,7 @@ export const useAISession = () => {
 
         if (!abortedRef.current) {
           const fullDoc = useDocumentationStore.getState().rawAIResponse;
-          await sessionRepository.save({
+          const saved = await sessionRepository.save({
             speakingLanguage,
             outputLanguage,
             transcription,
@@ -55,6 +55,8 @@ export const useAISession = () => {
             aiBackend: backend,
             createdAt: new Date(),
           });
+          setSavedToHistory(true);
+          setLastSavedSessionId(saved.id ?? null);
         }
       } catch (err) {
         if (err instanceof AINotConfiguredError) {
@@ -66,7 +68,7 @@ export const useAISession = () => {
         setGenerating(false);
       }
     },
-    [speakingLanguage, outputLanguage, selectedFormat, selectedTemplateId, appendRawResponse, reset, setGenerating, setError],
+    [speakingLanguage, outputLanguage, selectedFormat, selectedTemplateId, appendRawResponse, reset, setGenerating, setError, setSavedToHistory, setLastSavedSessionId],
   );
 
   const abort = useCallback(() => {

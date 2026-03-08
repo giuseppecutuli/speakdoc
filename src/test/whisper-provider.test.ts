@@ -125,7 +125,7 @@ describe('WhisperProvider', () => {
       provider.stop();
       await mockMediaRecorder.onstop?.();
 
-      expect(mockServiceInstance.transcribe).toHaveBeenCalledWith(expect.any(Blob));
+      expect(mockServiceInstance.transcribe).toHaveBeenCalledWith(expect.any(Blob), undefined, expect.any(String));
       expect(onResult).toHaveBeenCalledWith({ transcript: 'Hello world', isFinal: true });
       expect(onEnd).toHaveBeenCalled();
     });

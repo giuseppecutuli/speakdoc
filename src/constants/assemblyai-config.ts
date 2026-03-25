@@ -6,7 +6,7 @@ export type AssemblyAIModel = 'universal-2' | 'universal-3-pro';
 /** Language code used by the batch transcription API */
 export const ASSEMBLYAI_LANGUAGE_MAP: Record<LanguageCode, string> = {
   en: 'en_us',
-  it: 'it_it',
+  it: 'it',
 };
 
 /** Speech model used by the real-time streaming API, per speaking language */

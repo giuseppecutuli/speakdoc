@@ -78,7 +78,7 @@ docs/PRD.md  ARCHITECTURE.md  TASKS.md
 ## Rules
 - Language selection gates recording — never skip it
 - AI fallback is mandatory — never assume Gemini Nano available
-- Speech capture: **Auto** resolves Web Speech vs AssemblyAI batch (`resolve_voice_capture_mode`); explicit modes in Settings if the user wants to force one path
+- Speech capture: **Auto** resolves Web Speech vs AssemblyAI batch (`resolveVoiceCaptureMode`); explicit modes in Settings if the user wants to force one path
 - Immutable state — Zustand `set()` always creates new objects
 - TDD — tests before implementation, 80%+ coverage
 - No hardcoded secrets — API keys in localStorage via Settings UI

@@ -2,6 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useState } from 'react';
 import { Wand2, Loader2, X } from 'lucide-react';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
+import type { LanguageCode } from '@/types/language';
 import { improveDocument } from './inline-improvement.service';
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   content: string;
   onContentChange: (newContent: string) => void;
-  outputLanguage?: 'en' | 'it';
+  outputLanguage?: LanguageCode;
 }
 
 const MAX_INSTRUCTION_LENGTH = 500;

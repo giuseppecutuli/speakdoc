@@ -2,12 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { FileEdit, RotateCcw, Trash2 } from 'lucide-react';
 import { draftRepository } from '@/utils/repositories';
 import type { SessionDraft } from '@/types/session';
-import { build_default_draft_title } from '@/utils/session-naming';
-
-const format_date = (date: Date): string =>
-  new Date(date).toLocaleDateString(undefined, { dateStyle: 'medium' }) +
-  ' ' +
-  new Date(date).toLocaleTimeString(undefined, { timeStyle: 'short' });
+import { buildDefaultDraftTitle } from '@/utils/session-naming';
+import { formatDateTimeMedium } from '@/utils/datetime-display';
+import { draftHasRestoreableContent } from '@/features/learning/draft-restore';
 
 interface InProgressDraftsProps {
   onRestore: (draft: SessionDraft) => void;
@@ -19,10 +16,10 @@ export const InProgressDrafts = ({ onRestore }: InProgressDraftsProps) => {
 
   const refresh = useCallback(() => {
     draftRepository
-      .list_recent(20)
+      .listRecent(20)
       .then((rows) => {
-        const with_content = rows.filter((d) => d.transcription?.trim() || d.generatedDoc?.trim());
-        setDrafts(with_content);
+        const withContent = rows.filter(draftHasRestoreableContent);
+        setDrafts(withContent);
         setLoaded(true);
       })
       .catch(() => {
@@ -35,7 +32,7 @@ export const InProgressDrafts = ({ onRestore }: InProgressDraftsProps) => {
     refresh();
   }, [refresh]);
 
-  const handle_delete = async (id: number) => {
+  const handleDelete = async (id: number) => {
     try {
       await draftRepository.delete(id);
       refresh();
@@ -57,10 +54,10 @@ export const InProgressDrafts = ({ onRestore }: InProgressDraftsProps) => {
       </p>
       <ul className="space-y-2" data-testid="in-progress-drafts-list">
         {drafts.map((draft) => {
-          const title = draft.title?.trim() || build_default_draft_title(new Date(draft.savedAt));
-          const preview_source = draft.transcription?.trim() || draft.generatedDoc || '…';
+          const title = draft.title?.trim() || buildDefaultDraftTitle(new Date(draft.savedAt));
+          const previewSource = draft.transcription?.trim() || draft.generatedDoc || '…';
           const preview =
-            preview_source.length > 100 ? preview_source.slice(0, 100) + '…' : preview_source;
+            previewSource.length > 100 ? previewSource.slice(0, 100) + '…' : previewSource;
           return (
             <li
               key={draft.id}
@@ -69,7 +66,7 @@ export const InProgressDrafts = ({ onRestore }: InProgressDraftsProps) => {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{title}</p>
                 <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{preview}</p>
-                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{format_date(draft.savedAt)}</p>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{formatDateTimeMedium(draft.savedAt)}</p>
               </div>
               <div className="flex shrink-0 gap-1">
                 <button
@@ -86,7 +83,7 @@ export const InProgressDrafts = ({ onRestore }: InProgressDraftsProps) => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => draft.id != null && void handle_delete(draft.id)}
+                  onClick={() => draft.id != null && void handleDelete(draft.id)}
                   className="rounded p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-800"
                   title="Delete draft"
                   aria-label="Delete draft"

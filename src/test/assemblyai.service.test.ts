@@ -85,7 +85,7 @@ describe('AssemblyAIService', () => {
       mockTranscribe.mockResolvedValue({ status: 'completed', text: 'prova' });
       await service.transcribe(new Blob(), 'it');
       expect(mockTranscribe).toHaveBeenCalledWith(
-        expect.objectContaining({ language_code: 'it_it' }),
+        expect.objectContaining({ language_code: 'it' }),
       );
     });
 
@@ -93,7 +93,7 @@ describe('AssemblyAIService', () => {
       mockTranscribe.mockResolvedValue({ status: 'completed', text: 'test' });
       await service.transcribe(new Blob(), 'en');
       expect(mockTranscribe).toHaveBeenCalledWith(
-        expect.objectContaining({ speech_model: 'universal-2' }),
+        expect.objectContaining({ speech_models: ['universal-2'] }),
       );
     });
 
@@ -101,7 +101,7 @@ describe('AssemblyAIService', () => {
       mockTranscribe.mockResolvedValue({ status: 'completed', text: 'test' });
       await service.transcribe(new Blob(), 'en', 'universal-3-pro');
       expect(mockTranscribe).toHaveBeenCalledWith(
-        expect.objectContaining({ speech_model: 'universal-3-pro' }),
+        expect.objectContaining({ speech_models: ['universal-3-pro'] }),
       );
     });
 

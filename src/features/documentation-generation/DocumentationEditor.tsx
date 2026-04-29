@@ -6,8 +6,11 @@ import { useDocumentationStore } from '@/hooks/useDocumentationStore';
 import { applyFormat } from './doc-generator.service';
 import { cn } from '@/utils/cn';
 import type { OutputFormat } from '@/types/documentation';
+import { coerceOutputFormat } from '@/types/documentation';
+import type { LanguageCode } from '@/types/language';
 import { SelectionImprovementPopover } from './SelectionImprovementPopover';
 import { DocumentImprovementModal } from './DocumentImprovementModal';
+import { deferReactState } from '@/utils/defer-react-state';
 
 const FORMATS: { value: OutputFormat; label: string }[] = [
   { value: 'markdown', label: 'Markdown' },
@@ -17,7 +20,7 @@ const FORMATS: { value: OutputFormat; label: string }[] = [
 
 interface DocumentationEditorProps {
   onRegenerate?: () => void;
-  outputLanguage?: 'en' | 'it';
+  outputLanguage?: LanguageCode;
 }
 
 export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: DocumentationEditorProps) => {
@@ -48,20 +51,23 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    if (rawAIResponse) {
-      const formatted = applyFormat(rawAIResponse, selectedFormat);
+    if (!rawAIResponse) return;
+    const formatted = applyFormat(rawAIResponse, selectedFormat);
+    deferReactState(() => {
       setEditedContent(formatted);
       setFormattedOutput(formatted);
-    }
+    });
   }, [rawAIResponse, selectedFormat, setFormattedOutput]);
 
   // Apply undo/redo restore
   useEffect(() => {
-    if (pendingRestore !== null) {
-      setEditedContent(pendingRestore);
-      setFormattedOutput(pendingRestore);
+    if (pendingRestore === null) return;
+    const snapshot = pendingRestore;
+    deferReactState(() => {
+      setEditedContent(snapshot);
+      setFormattedOutput(snapshot);
       clearPendingRestore();
-    }
+    });
   }, [pendingRestore, setFormattedOutput, clearPendingRestore]);
 
   useEffect(() => {
@@ -82,7 +88,7 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
   };
 
   const handleFormatChange = (format: string) => {
-    const f = format as OutputFormat;
+    const f = coerceOutputFormat(format);
     setFormat(f);
     const formatted = applyFormat(rawAIResponse, f);
     setEditedContent(formatted);

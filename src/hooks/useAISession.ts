@@ -5,10 +5,10 @@ import { useTemplateStore } from './useTemplateStore';
 import { generateDocumentation } from '@/features/ai-integration/ai-manager.service';
 import { sessionRepository, draftRepository } from '@/utils/repositories';
 import { STORAGE_KEYS } from '@/constants/config';
-import { AINotConfiguredError } from '@/types/ai';
+import { AINotConfiguredError, type DocumentationAiBackend } from '@/types/ai';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
-import { AUDIO_BLOB_MAX_BYTES } from '@/constants/draft-limits';
-import { build_default_session_name } from '@/utils/session-naming';
+import { buildDefaultSessionName } from '@/utils/session-naming';
+import { packAudioForStorage } from '@/utils/audio-chunk-storage';
 
 /**
  * Orchestrates an AI documentation session:
@@ -34,48 +34,47 @@ export const useAISession = () => {
       reset();
       setGenerating(true);
 
-      let backend: 'gemini-nano' | 'external-api' = 'external-api';
+      let backend: DocumentationAiBackend = 'external-api';
 
       try {
-        for await (const { chunk, backend: b } of generateDocumentation(
+        for await (const { chunk, backend: streamBackend } of generateDocumentation(
           transcription,
           speakingLanguage,
           outputLanguage,
           selectedTemplateId,
         )) {
           if (abortedRef.current) break;
-          backend = b as 'gemini-nano' | 'external-api';
+          backend = streamBackend;
           appendRawResponse(chunk);
         }
 
         if (!abortedRef.current) {
           const fullDoc = useDocumentationStore.getState().rawAIResponse;
-          const created_at = new Date();
-          const recording_blob = useRecordingStore.getState().audioBlob;
-          const safe_audio =
-            recording_blob && recording_blob.size <= AUDIO_BLOB_MAX_BYTES ? recording_blob : undefined;
+          const createdAt = new Date();
+          const recordingBlob = useRecordingStore.getState().audioBlob;
+          const audioPack = packAudioForStorage(recordingBlob ?? null);
           const saved = await sessionRepository.save({
-            name: build_default_session_name(created_at),
+            name: buildDefaultSessionName(createdAt),
             speakingLanguage,
             outputLanguage,
             transcription,
             generatedDoc: fullDoc,
             format: selectedFormat,
             aiBackend: backend,
-            createdAt: created_at,
-            ...(safe_audio ? { audioBlob: safe_audio } : {}),
+            createdAt,
+            ...audioPack,
           });
           setSavedToHistory(true);
           setLastSavedSessionId(saved.id ?? null);
 
-          const active_raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_DRAFT_ID);
-          if (active_raw) {
-            const draft_id = Number(active_raw);
-            if (!Number.isNaN(draft_id)) {
-              await draftRepository.delete(draft_id).catch(() => undefined);
+          const activeRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_DRAFT_ID);
+          if (activeRaw) {
+            const draftId = Number(activeRaw);
+            if (!Number.isNaN(draftId)) {
+              await draftRepository.delete(draftId).catch(() => undefined);
             }
           }
-          draftRepository.begin_new_draft();
+          draftRepository.beginNewDraft();
         }
       } catch (err) {
         if (err instanceof AINotConfiguredError) {

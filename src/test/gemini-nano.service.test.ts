@@ -101,14 +101,15 @@ describe('generateWithGeminiNano', () => {
     mockWindowAI('available', session);
 
     // consume generator
-    for await (const _ of generateWithGeminiNano('sys', 'msg')) {
-      // noop
+    for await (const chunk of generateWithGeminiNano('sys', 'msg')) {
+      void chunk;
     }
     expect(session.destroy).toHaveBeenCalledOnce();
   });
 
   it('calls session.destroy() on error', async () => {
     const session: MockSession = {
+      // eslint-disable-next-line require-yield -- stream throws on first iteration
       promptStreaming: vi.fn(async function* () {
         throw new Error('crash');
       }),
@@ -125,8 +126,8 @@ describe('generateWithGeminiNano', () => {
     const session = makeMockSession(['response']);
     const ai = mockWindowAI('available', session);
 
-    for await (const _ of generateWithGeminiNano('my system prompt', 'user msg')) {
-      // noop
+    for await (const chunk of generateWithGeminiNano('my system prompt', 'user msg')) {
+      void chunk;
     }
     expect(ai.languageModel.create).toHaveBeenCalledWith({ systemPrompt: 'my system prompt' });
   });

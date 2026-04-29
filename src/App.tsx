@@ -143,63 +143,68 @@ export const App = () => {
     <Layout onSettingsClick={() => setView('settings')}>
       <LanguageSelectionModal open={showLanguageModal} onConfirm={handleLanguageConfirm} />
 
-      <div className="space-y-6">
-        {pendingDraft && (
-          <DraftRestoreBanner
-            draft={pendingDraft}
-            onRestore={handleRestoreDraft}
-            onDismiss={handleDismissDraft}
-          />
-        )}
+      <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-start md:gap-8">
+        <div className="min-w-0 space-y-6">
+          {pendingDraft && (
+            <DraftRestoreBanner
+              draft={pendingDraft}
+              onRestore={handleRestoreDraft}
+              onDismiss={handleDismissDraft}
+            />
+          )}
 
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Voice Recording</h2>
-            <div className="flex items-center gap-4">
-              <TemplateSelector />
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-mono text-slate-600 dark:text-slate-300">
-                  {SUPPORTED_LANGUAGES[speakingLanguage]?.label} → {SUPPORTED_LANGUAGES[outputLanguage]?.label}
-                </span>
-                <button
-                  onClick={() => setShowLanguageModal(true)}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  Change
-                </button>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Voice Recording</h2>
+              <div className="flex items-center gap-4">
+                <TemplateSelector />
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-mono text-slate-600 dark:text-slate-300">
+                    {SUPPORTED_LANGUAGES[speakingLanguage]?.label} → {SUPPORTED_LANGUAGES[outputLanguage]?.label}
+                  </span>
+                  <button
+                    onClick={() => setShowLanguageModal(true)}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
+            </div>
+            <VoiceRecorder onTranscriptionComplete={generate} />
+            <div className="mt-4 border-t border-slate-100 dark:border-slate-700 pt-4 flex flex-col gap-4">
+              <AudioFileImporter onTranscriptionComplete={generate} />
+              <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
+                <TextPasteInput onTranscriptionComplete={generate} />
               </div>
             </div>
           </div>
-          <VoiceRecorder onTranscriptionComplete={generate} />
-          <div className="mt-4 border-t border-slate-100 dark:border-slate-700 pt-4 flex flex-col gap-4">
-            <AudioFileImporter onTranscriptionComplete={generate} />
-            <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
-              <TextPasteInput onTranscriptionComplete={generate} />
+
+          <TranscriptionDisplay />
+
+          <LearningPanel />
+
+          {docError && (
+            <div
+              className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-400"
+              role="alert"
+              aria-live="assertive"
+            >
+              <strong>Error:</strong> {docError}
             </div>
-          </div>
+          )}
+
+          <DocumentationEditor onRegenerate={handleRegenerate} />
         </div>
 
-        <LearningPanel />
-
-        <InProgressDrafts onRestore={handleRestoreDraftFromList} />
-
-        <TranscriptionDisplay />
-
-        {docError && (
-          <div
-            className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-400"
-            role="alert"
-            aria-live="assertive"
-          >
-            <strong>Error:</strong> {docError}
-          </div>
-        )}
-
-        <DocumentationEditor onRegenerate={handleRegenerate} />
-
-        <HelpPanel />
-
-        <SessionHistory onRestore={handleRestoreSession} />
+        <aside
+          className="flex min-w-0 flex-col gap-6 md:sticky md:top-24 md:self-start md:max-h-[calc(100vh-7rem)] md:overflow-y-auto md:border-l md:border-slate-200 md:pl-8 dark:md:border-slate-700"
+          aria-label="Drafts, sessions, and quick guide"
+        >
+          <InProgressDrafts onRestore={handleRestoreDraftFromList} compact />
+          <SessionHistory onRestore={handleRestoreSession} compact />
+          <HelpPanel compact />
+        </aside>
       </div>
     </Layout>
   );

@@ -53,9 +53,18 @@ export const TranscriptionDisplay = () => {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Transcription</h3>
+    <section
+      id="live-transcription"
+      aria-labelledby="transcription-heading"
+      className="rounded-xl border border-indigo-200/70 dark:border-indigo-800/50 bg-white dark:bg-slate-800 p-4 shadow-sm ring-1 ring-indigo-500/10 dark:ring-indigo-400/10"
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3
+          id="transcription-heading"
+          className="text-base font-semibold text-slate-900 dark:text-slate-100"
+        >
+          Transcription
+        </h3>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">
             {lang_label}
@@ -106,10 +115,9 @@ export const TranscriptionDisplay = () => {
         />
       ) : (
         <div
-          className={cn(
-            'min-h-16 text-sm leading-relaxed',
-            !has_content && 'text-slate-400 dark:text-slate-500 italic',
-          )}
+          className={cn('min-h-16 text-sm leading-relaxed', {
+            'text-slate-400 dark:text-slate-500 italic': !has_content,
+          })}
           aria-live="polite"
           aria-label="Live transcription"
         >
@@ -125,6 +133,6 @@ export const TranscriptionDisplay = () => {
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 };

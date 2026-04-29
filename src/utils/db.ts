@@ -29,6 +29,11 @@ class DocAssistantDB extends Dexie {
       whisperModels: null,
       drafts: '++id, savedAt',
     });
+    this.version(5).stores({
+      sessions: '++id, speakingLanguage, outputLanguage, format, createdAt',
+      feedback: '++id, sessionId, rating, createdAt',
+      drafts: '++id, savedAt, updatedAt',
+    });
   }
 }
 

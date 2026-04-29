@@ -10,14 +10,20 @@ Fully client-side single-page application. No backend. All processing in the bro
 ```
 Browser (Chrome 123+)
 ├── React 18 + TypeScript + Vite
-├── Speech Layer: ISpeechProvider (pluggable)
-│   ├── WebSpeechProvider    → Web Speech API (default, real-time)
-│   └── AssemblyAIProvider   → AssemblyAI cloud API (high accuracy, requires API key)
+├── Speech / mic (Settings: auto | web-speech | assemblyai-batch)
+│   ├── Web Speech API → real-time text (WebSpeechProvider + SpeechProviderManager)
+│   └── AssemblyAI batch → MediaRecorder → transcribe on Stop (AssemblyAIService; same as file import)
 ├── AI Layer: window.ai (Gemini Nano) → OpenAI-compatible API (fallback)
 ├── State: Zustand stores
-├── Persistence: Dexie.js (IndexedDB) + localStorage
+├── Persistence: Dexie.js (IndexedDB) + localStorage (incl. optional session audioBlob, multi-row drafts)
 └── Output: Clipboard API + DOM formatters
 ```
+
+### Speech and voice input
+
+- **Preference** lives in `localStorage` under `STORAGE_KEYS.SPEECH_PROVIDER`, loaded via [`speech-preference.ts`](../src/features/voice-input/speech-preference.ts). Legacy value `assemblyai` is migrated to `assemblyai-batch`.
+- **`VoiceRecorder`** branches on `resolve_voice_capture_mode()`: either starts Web Speech only, or records audio and calls `AssemblyAIService.transcribe` after stop (status `processing` while waiting). `AssemblyAIProvider` (streaming) is not used by the recorder UI.
+- **Transcription UI** is a single panel: [`TranscriptionDisplay`](../src/features/transcription/TranscriptionDisplay.tsx) (no duplicate preview under the recorder).
 
 ---
 
@@ -101,12 +107,12 @@ Three Zustand stores, each isolated by domain:
 ```typescript
 {
   status: 'idle' | 'recording' | 'paused' | 'processing' | 'done'
-  transcription: string            // live-updating Italian text
+  transcription: string
+  interimTranscription: string
   audioBlob: Blob | null
+  capture_mode: 'browser_stt' | 'assemblyai_batch' | null  // set while a mic session is active
   error: string | null
-  startRecording(): Promise<void>
-  pauseRecording(): void
-  stopRecording(): Promise<void>
+  // actions: appendTranscription, setTranscription, setAudioBlob, setCaptureMode, reset, …
 }
 ```
 
@@ -244,7 +250,7 @@ recognition.onresult = (event) => { /* update transcription store */ };
 
 ## Speech Provider Layer — Pluggable Architecture
 
-The voice-input feature uses a **pluggable provider abstraction** to support multiple speech-to-text backends. Switching between Web Speech API and whisper.cpp (WASM) requires no changes to component code.
+The voice-input feature uses a **pluggable provider abstraction** (`ISpeechProvider` + `SpeechProviderManager`) for **Web Speech** and the **AssemblyAI streaming** implementation (`AssemblyAIProvider`). The **`VoiceRecorder`** mic flow does **not** use `AssemblyAIProvider`; it calls **`AssemblyAIService.transcribe()`** when Settings choose **AssemblyAI (after recording)** or when **Auto** resolves to batch mode.
 
 ### Provider Interface
 
@@ -275,17 +281,12 @@ export interface ISpeechProvider {
 - **Config**: None required
 - **Path**: `src/features/voice-input/providers/WebSpeechProvider.ts`
 
-#### AssemblyAIProvider (cloud STT)
-- **Status**: 🔲 Phase 1b replacement (replaces Whisper WASM)
-- **Technology**: AssemblyAI REST API called directly from the browser via `assemblyai` npm SDK
-- **Library**: `assemblyai` (browser-compatible; uses `fetch` internally)
-- **Availability**: Any browser with `fetch` + `MediaRecorder` support; requires internet connection
-- **Accuracy**: ~95–99% (universal-3-pro / universal-2 models)
-- **Latency**: ~2–10 sec after recording stops (cloud processing)
-- **Config**: User provides AssemblyAI API key in Settings (stored in localStorage)
+#### AssemblyAIProvider (streaming, optional / not used by VoiceRecorder UI)
+- **Status**: Present for tests and potential reuse; **mic batch mode** uses `AssemblyAIService` instead
+- **Technology**: AssemblyAI streaming WebSocket (SDK)
 - **Components**:
-  - `src/features/voice-input/providers/AssemblyAIProvider.ts` — implements ISpeechProvider; MediaRecorder capture → blob → SDK transcription
-  - `src/features/voice-input/assemblyai.service.ts` — wraps `client.transcripts.transcribe()`; handles language code mapping and error normalization
+  - `src/features/voice-input/providers/AssemblyAIProvider.ts` — streaming `ISpeechProvider` (not wired from `VoiceRecorder`)
+  - `src/features/voice-input/assemblyai.service.ts` — **`client.transcripts.transcribe()`** batch path used by **`VoiceRecorder`** (after stop) and **`AudioFileImporter`**
   - `src/constants/assemblyai-config.ts` — API models, language code mapping (`en`→`en_us`, `it`→`it_it`)
   - `src/components/AssemblyAIGuide.tsx` — collapsible step-by-step guide for obtaining an API key
 - **Language mapping**: App codes (`en`/`it`) → AssemblyAI codes (`en_us`/`it_it`)
@@ -294,34 +295,10 @@ export interface ISpeechProvider {
 
 > **Why AssemblyAI over Whisper WASM?** Whisper WASM required downloading 45–150 MB model files, was CPU-bound (5–30 sec on average hardware), and couldn't be interrupted. AssemblyAI delivers equivalent accuracy in 2–10 sec via cloud inference with no local setup beyond an API key.
 
-### Provider Selection Logic
+### Provider selection (manager vs Settings)
 
-```typescript
-// src/features/voice-input/SpeechProviderManager.ts
-class SpeechProviderManager {
-  // Accepts provider array in constructor for dependency injection (testing)
-  constructor(providers: ISpeechProvider[] = [
-    new WebSpeechProvider(),
-    new AssemblyAIProvider(),
-  ]) { ... }
-
-  // User-preferred provider name comes from settings localStorage (Phase 1b)
-  selectBestProvider(preferredName?: SpeechProviderName): ISpeechProvider {
-    if (preferredName && preferredName !== 'auto') {
-      const preferred = this.providers.find(p => p.name === preferredName);
-      if (preferred?.isAvailable() && preferred.isConfigured()) return preferred;
-    }
-    // Fall back to first available + configured provider
-    const available = this.providers.find(p => p.isAvailable() && p.isConfigured());
-    if (!available) throw new Error('No speech provider available');
-    return available;
-  }
-
-  start(language: LanguageCode, callbacks: SpeechCallbacks, preferredName?: SpeechProviderName): void { ... }
-  stop(): void { ... }
-  abort(): void { ... }
-}
-```
+- **`SpeechProviderManager`** — still used when **`VoiceRecorder`** runs **Web Speech**; it receives `preferredName: 'web-speech'`.
+- **User-facing speech modes** — `auto` \| `web-speech` \| `assemblyai-batch` in `localStorage`, see **`speech-preference.ts`** (`resolve_voice_capture_mode`).
 
 ### Language Code Mapping
 
@@ -525,62 +502,46 @@ SessionHistory (expanded row)
             ↓
 App.tsx — handleRestoreSession()
     ├── useRecordingStore.setTranscription(session.transcription)
+    ├── useRecordingStore.setAudioBlob(session.audioBlob ?? null)
     ├── useDocumentationStore.setFormattedOutput(session.generatedDoc)
     ├── useDocumentationStore.setFormat(session.format)
     ├── useLanguageStore.setLanguages(session.speakingLanguage, session.outputLanguage)
     └── setShowLanguageModal(false)   // skip modal — language already known
 ```
 
-### Phase 6.2 — Draft Auto-Save Architecture
+### Phase 6.2 — Draft auto-save and in-progress list
 
 ```
 useRecordingStore / useDocumentationStore (state change)
     ↓
 useDraftPersistence hook (debounce 1 s)
     ├── Skip if transcription === '' && generatedDoc === ''
-    ├── Omit audioBlob if > 25 MB
-    └── draftRepository.save(draft)   → IndexedDB drafts table (clear + insert)
-
-─────────────────────────────────────────────────────────
+    ├── Omit audioBlob if > 25 MB (see draft-limits.ts)
+    └── draftRepository.save(draft)
+            → upserts the row pointed to by localStorage ACTIVE_DRAFT_ID, or inserts a new row and sets that id
 
 App mount (page load / refresh)
     ↓
 draftRepository.getLatest()
-    ├── No draft → normal startup
-    └── Draft found AND savedAt < 24 h ago AND session empty
-            ↓
-        DraftRestoreBanner renders
-            ├── [Restore] → populate all stores + set audioBlob
-            └── [Discard] → draftRepository.clear(); hide banner
+    └── Recent draft → DraftRestoreBanner (restore / discard deletes that row by id)
+
+Main screen
+    └── InProgressDrafts → draftRepository.list_recent(20) — restore or delete individual drafts
+
+After a completed AI session is saved
+    └── useAISession deletes the active draft row (if any) and calls begin_new_draft()
 ```
 
-### New Files (Phase 6)
+### Key files (drafts + sessions)
 
-```
-src/
-  types/session.ts                              — SessionDraft interface added
-  utils/db.ts                                   — version 3 with drafts table
-  utils/repositories.ts                         — exports draftRepository
-  features/learning/repositories/
-    IDraftRepository.ts                         — save / getLatest / clear
-    IndexedDBDraftRepository.ts                 — Dexie implementation
-  hooks/
-    useDraftPersistence.ts                      — debounced auto-save hook
-  components/
-    DraftRestoreBanner.tsx                      — startup restore/discard banner
-```
+- `utils/db.ts` — Dexie schema **v5**: `drafts` index includes `updatedAt`
+- `STORAGE_KEYS.ACTIVE_DRAFT_ID` — current autosave row
+- `DocumentationSession` may include `audioBlob` (≤ limit at save) + default `name`
+- `SessionHistory` — download doc, optional download audio, rename session title
 
-### IDraftRepository Interface
+### IDraftRepository (summary)
 
-```typescript
-export interface IDraftRepository {
-  save(draft: Omit<SessionDraft, 'id'>): Promise<SessionDraft>;
-  getLatest(): Promise<SessionDraft | undefined>;
-  clear(): Promise<void>;
-}
-```
-
-Only one draft is stored at a time. `IndexedDBDraftRepository.save()` clears the table before inserting, ensuring exactly one row.
+`begin_new_draft`, `save` (upsert active row), `getLatest`, `list_recent`, `delete`, `clear`.
 
 ### Audio Blob Handling
 
@@ -591,9 +552,10 @@ IndexedDB natively supports `Blob` storage — no base64 encoding required. The 
 | Event | Effect |
 |---|---|
 | User types / doc generates | Auto-save fires (debounced 1 s) |
-| User clicks Regenerate / reset | `useDraftPersistence` detects empty state → `draftRepository.clear()` |
-| User restores from banner | Stores populated; banner hidden; draft NOT cleared (allows re-restore) |
-| User discards banner | `draftRepository.clear()`; banner hidden |
+| User clicks Regenerate / reset | `useDraftPersistence` skips save when stores empty (no automatic `clear()` of all drafts) |
+| User restores from banner | Stores populated; banner hidden |
+| User discards banner | `draftRepository.delete(id)` for that draft row |
+| Successful doc generation | Active draft row deleted; `begin_new_draft()` for next autosave chain |
 | Draft > 24 h old | Banner not shown; draft is stale |
 
 ---

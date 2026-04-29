@@ -8,6 +8,8 @@ export const STORAGE_KEYS = {
   API_KEY: 'speak-doc:api-key',
   MODEL: 'speak-doc:model',
   SPEECH_PROVIDER: 'speak-doc:speech-provider',
+  /** Active draft row id in IndexedDB for debounced autosave (see IndexedDBDraftRepository). */
+  ACTIVE_DRAFT_ID: 'speak-doc:active-draft-id',
   ASSEMBLYAI_API_KEY: 'speak-doc:assemblyai-api-key',
   ASSEMBLYAI_MODEL: 'speak-doc:assemblyai-model',
   DOC_TEMPLATE: 'speak-doc:doc-template',

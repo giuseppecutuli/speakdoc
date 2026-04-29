@@ -9,7 +9,7 @@ No backend. No server. Everything runs in the browser.
 ## What it does
 
 1. **Select languages** — choose your speaking language and the documentation output language independently (English / Italian)
-2. **Record** — speak naturally; live transcription appears in real time (supports 40+ minute sessions via chunked Whisper processing)
+2. **Record** — speak naturally; transcription is either **live** (Web Speech API) or **after stop** (AssemblyAI cloud batch), depending on Settings (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md))
 3. **Generate** — AI produces a structured wiki-style document with functional + technical sections, Mermaid diagrams, action items, and open questions
 4. **Edit** — select any text in the editor to rewrite it with an inline AI instruction; undo/redo full revision history
 5. **Copy** — paste directly into Confluence (wiki markup), Notion (Markdown), or any editor (HTML preview)
@@ -17,10 +17,13 @@ No backend. No server. Everything runs in the browser.
 ### Additional features
 
 - **Documentation templates** — Generic, Meeting Notes, Tech Spec, ADR, Bug Report
-- **Whisper WASM** — offline, high-accuracy speech-to-text (~95–97%); model cached in IndexedDB
-- **Session history** — past sessions stored in IndexedDB and re-exportable in any format
+- **AssemblyAI** (optional) — high-accuracy batch transcription for mic (after recording) and audio file import; API key in Settings
+- **Session history** — completed sessions in IndexedDB with default titles, rename, restore, optional **saved mic audio** + download
+- **In-progress drafts** — autosaved work with a **Draft — …** title; list, restore, or delete from the main screen
 - **Dark mode** — toggle in the header, persisted to localStorage
 - **Keyboard shortcuts** — `Space` to start/stop recording, `Ctrl+S` to download
+
+Technical detail for contributors: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/TASKS.md](docs/TASKS.md), [docs/PRD.md](docs/PRD.md), and [CLAUDE.md](CLAUDE.md) (agent-oriented).
 
 ---
 
@@ -63,9 +66,9 @@ Gemini Nano is tried first; falls back to the configured external API (default: 
 - **Dexie.js** — IndexedDB session storage
 - **Tailwind CSS v4** — UI
 - **Radix UI** — accessible primitives
-- **Vitest** — unit tests (229 tests, 80%+ coverage)
-- **Web Speech API** — live transcription
-- **@xenova/transformers** — Whisper WASM offline transcription
+- **Vitest** — unit tests
+- **Web Speech API** — optional live mic transcription
+- **assemblyai** — cloud batch STT (mic after stop + file import)
 - **Web Audio API** — waveform visualizer
 
 ---
@@ -111,7 +114,7 @@ npm run lint         # eslint
 src/
   features/
     language-selection/   # Language modal + Zustand store
-    voice-input/          # Web Speech API + waveform
+    voice-input/          # Web Speech + AssemblyAI batch + waveform + speech-preference
     ai-integration/       # Gemini Nano + external API + fallback
     transcription/        # Live transcription display
     documentation-generation/  # Formatters (Markdown / Wiki / HTML)

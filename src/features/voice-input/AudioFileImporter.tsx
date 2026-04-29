@@ -4,7 +4,7 @@ import { AssemblyAIService } from './assemblyai.service';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { STORAGE_KEYS } from '@/constants/config';
-import { DEFAULT_ASSEMBLYAI_MODEL, type AssemblyAIModel } from '@/constants/assemblyai-config';
+import { load_assembly_ai_model_from_storage } from '@/constants/assemblyai-config';
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -15,9 +15,6 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 const loadAssemblyAIKey = (): string =>
   localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_API_KEY) ?? '';
-
-const loadAssemblyAIModel = (): AssemblyAIModel =>
-  (localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_MODEL) as AssemblyAIModel) ?? DEFAULT_ASSEMBLYAI_MODEL;
 
 interface AudioFileImporterProps {
   onTranscriptionComplete: (text: string) => void;
@@ -51,7 +48,7 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
       serviceRef.current.configure(key);
       setPhase('transcribing');
 
-      const model = loadAssemblyAIModel();
+      const model = load_assembly_ai_model_from_storage();
       const text = await serviceRef.current.transcribe(file, speakingLanguage, model);
 
       appendTranscription(text, true);

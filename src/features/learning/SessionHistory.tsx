@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Clock, Copy, Download, ChevronDown, ChevronUp, Trash2, RotateCcw, Pencil, Check } from 'lucide-react';
 import { sessionRepository } from '@/utils/repositories';
 import type { DocumentationSession } from '@/types/session';
-import { copyToClipboard, downloadAsFile } from '@/features/export/export.service';
+import { copyToClipboard, downloadAsFile, download_blob } from '@/features/export/export.service';
 import type { OutputFormat } from '@/types/documentation';
+import { build_default_session_name } from '@/utils/session-naming';
 
 const formatDate = (date: Date): string =>
   new Date(date).toLocaleDateString(undefined, { dateStyle: 'medium' }) +
@@ -32,9 +33,16 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
   const [nameDraft, setNameDraft] = useState(session.name ?? '');
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
+  const display_title =
+    session.name?.trim() || build_default_session_name(new Date(session.createdAt));
+
   useEffect(() => {
     if (isEditingName) nameInputRef.current?.focus();
   }, [isEditingName]);
+
+  useEffect(() => {
+    setNameDraft(session.name ?? '');
+  }, [session.name, session.id]);
 
   const handleCopy = async () => {
     try {
@@ -48,6 +56,14 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
 
   const handleDownload = () => {
     downloadAsFile(session.generatedDoc, session.format as OutputFormat);
+  };
+
+  const handle_download_audio = () => {
+    const blob = session.audioBlob;
+    if (!blob) return;
+    const ext = blob.type.includes('webm') ? 'webm' : 'audio';
+    const safe = display_title.replaceAll(/[/\\?%*:|"<>]/g, '-').slice(0, 80);
+    download_blob(blob, `${safe}.${ext}`);
   };
 
   const handleSaveName = async () => {
@@ -102,17 +118,22 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1 group">
-              {session.name ? (
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{session.name}</span>
-              ) : null}
+            <div className="flex items-center gap-1 group mb-0.5">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate" title={display_title}>
+                {display_title}
+              </span>
               <button
-                onClick={(e) => { e.stopPropagation(); setNameDraft(session.name ?? ''); setIsEditingName(true); }}
-                className="hidden group-hover:flex items-center gap-0.5 rounded px-1 py-0.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNameDraft(session.name ?? '');
+                  setIsEditingName(true);
+                }}
+                className="flex items-center gap-0.5 rounded px-1 py-0.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors opacity-70 group-hover:opacity-100"
                 title="Rename session"
               >
                 <Pencil className="h-3 w-3" />
-                {!session.name && 'Name'}
+                Rename
               </button>
             </div>
           )}
@@ -194,8 +215,19 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
               aria-label="Download generated doc"
             >
               <Download className="h-3.5 w-3.5" />
-              Download
+              Download doc
             </button>
+            {session.audioBlob && (
+              <button
+                type="button"
+                onClick={handle_download_audio}
+                className="flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                aria-label="Download session audio"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download audio
+              </button>
+            )}
           </div>
         </div>
       )}

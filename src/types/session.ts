@@ -3,6 +3,7 @@ import type { OutputFormat } from './documentation';
 
 export interface DocumentationSession {
   id?: number;
+  /** User-visible title; defaults are assigned on save until renamed. */
   name?: string;
   speakingLanguage: LanguageCode;
   outputLanguage: LanguageCode;
@@ -11,6 +12,8 @@ export interface DocumentationSession {
   format: OutputFormat;
   aiBackend: 'gemini-nano' | 'external-api';
   createdAt: Date;
+  /** Optional mic recording for replay / download (subject to size limits at save time). */
+  audioBlob?: Blob;
 }
 
 export interface SessionFeedback {
@@ -22,6 +25,8 @@ export interface SessionFeedback {
 
 export interface SessionDraft {
   id?: number;
+  /** Auto or user-edited label for draft lists (optional for legacy rows). */
+  title?: string;
   transcription: string;
   generatedDoc: string;
   format: string;
@@ -29,4 +34,5 @@ export interface SessionDraft {
   outputLanguage: string;
   audioBlob?: Blob;
   savedAt: Date;
+  updatedAt?: Date;
 }

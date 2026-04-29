@@ -4,6 +4,7 @@ import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { SUPPORTED_LANGUAGES } from '@/constants/languages';
 import { cn } from '@/utils/cn';
+import { deferReactState } from '@/utils/defer-react-state';
 
 export const TranscriptionDisplay = () => {
   const { transcription, interimTranscription, status, capture_mode, setTranscription } = useRecordingStore();
@@ -20,7 +21,9 @@ export const TranscriptionDisplay = () => {
   const is_processing = status === 'processing';
 
   useEffect(() => {
-    setIsEditing(false);
+    deferReactState(() => {
+      setIsEditing(false);
+    });
   }, [transcription]);
 
   const handle_edit_start = () => {

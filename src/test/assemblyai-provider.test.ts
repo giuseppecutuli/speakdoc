@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssemblyAIProvider } from '@/features/voice-input/providers/AssemblyAIProvider';
 
@@ -43,8 +44,19 @@ const mockAudioContext = {
   destination: {},
 };
 
-vi.stubGlobal('AudioContext', vi.fn(() => mockAudioContext));
-vi.stubGlobal('AudioWorkletNode', vi.fn(() => mockWorkletNode));
+// Use `function` bodies so `new AudioContext()` / `new AudioWorkletNode()` work (arrow mocks are not constructors).
+vi.stubGlobal(
+  'AudioContext',
+  vi.fn(function () {
+    return mockAudioContext;
+  }),
+);
+vi.stubGlobal(
+  'AudioWorkletNode',
+  vi.fn(function () {
+    return mockWorkletNode;
+  }),
+);
 vi.stubGlobal('navigator', {
   mediaDevices: { getUserMedia: mockGetUserMedia },
 });

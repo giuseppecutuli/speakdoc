@@ -22,7 +22,7 @@ Browser (Chrome 123+)
 ### Speech and voice input
 
 - **Preference** lives in `localStorage` under `STORAGE_KEYS.SPEECH_PROVIDER`, loaded via [`speech-preference.ts`](../src/features/voice-input/speech-preference.ts). Legacy value `assemblyai` is migrated to `assemblyai-batch`.
-- **`VoiceRecorder`** branches on `resolve_voice_capture_mode()`: either starts Web Speech only, or records audio and calls `AssemblyAIService.transcribe` after stop (status `processing` while waiting). `AssemblyAIProvider` (streaming) is not used by the recorder UI.
+- **`VoiceRecorder`** branches on `resolveVoiceCaptureMode()`: either starts Web Speech only, or records audio and calls `AssemblyAIService.transcribe` after stop (status `processing` while waiting). `AssemblyAIProvider` (streaming) is not used by the recorder UI.
 - **Transcription UI** is a single panel: [`TranscriptionDisplay`](../src/features/transcription/TranscriptionDisplay.tsx) (no duplicate preview under the recorder).
 
 ---
@@ -298,7 +298,7 @@ export interface ISpeechProvider {
 ### Provider selection (manager vs Settings)
 
 - **`SpeechProviderManager`** — still used when **`VoiceRecorder`** runs **Web Speech**; it receives `preferredName: 'web-speech'`.
-- **User-facing speech modes** — `auto` \| `web-speech` \| `assemblyai-batch` in `localStorage`, see **`speech-preference.ts`** (`resolve_voice_capture_mode`).
+- **User-facing speech modes** — `auto` \| `web-speech` \| `assemblyai-batch` in `localStorage`, see **`speech-preference.ts`** (`resolveVoiceCaptureMode`).
 
 ### Language Code Mapping
 
@@ -526,26 +526,26 @@ draftRepository.getLatest()
     └── Recent draft → DraftRestoreBanner (restore / discard deletes that row by id)
 
 Main screen
-    └── InProgressDrafts → draftRepository.list_recent(20) — restore or delete individual drafts
+    └── InProgressDrafts → draftRepository.listRecent(20) — restore or delete individual drafts
 
 After a completed AI session is saved
-    └── useAISession deletes the active draft row (if any) and calls begin_new_draft()
+    └── useAISession deletes the active draft row (if any) and calls beginNewDraft()
 ```
 
 ### Key files (drafts + sessions)
 
 - `utils/db.ts` — Dexie schema **v5**: `drafts` index includes `updatedAt`
 - `STORAGE_KEYS.ACTIVE_DRAFT_ID` — current autosave row
-- `DocumentationSession` may include `audioBlob` (≤ limit at save) + default `name`
+- `DocumentationSession` may include `audioBlob` (≤ 25 MB), or **`audioChunks` + `audioMimeType`** when larger (see `audio-chunk-storage.ts`), + default `name`
 - `SessionHistory` — download doc, optional download audio, rename session title
 
 ### IDraftRepository (summary)
 
-`begin_new_draft`, `save` (upsert active row), `getLatest`, `list_recent`, `delete`, `clear`.
+`beginNewDraft`, `save` (upsert active row), `getLatest`, `listRecent`, `delete`, `clear`.
 
 ### Audio Blob Handling
 
-IndexedDB natively supports `Blob` storage — no base64 encoding required. The draft includes `audioBlob` only when the blob size is ≤ 25 MB. This avoids quota issues while still restoring audio for the common case (< 5 min recordings ≈ 5–15 MB).
+IndexedDB stores `Blob` values directly. **Under ~25 MB** (`AUDIO_BLOB_MAX_BYTES`) a single `audioBlob` is kept. **Larger recordings** are split with `Blob.slice()` into **`audioChunks`** (~20 MB each, cap on slice count in `MAX_AUDIO_CHUNKS`); `getStoredAudioBlob()` merges them again for playback, restore, and download. If the recording would exceed the chunk cap, audio is omitted from persistence (same as before chunking).
 
 ### Draft Lifecycle
 
@@ -555,7 +555,7 @@ IndexedDB natively supports `Blob` storage — no base64 encoding required. The 
 | User clicks Regenerate / reset | `useDraftPersistence` skips save when stores empty (no automatic `clear()` of all drafts) |
 | User restores from banner | Stores populated; banner hidden |
 | User discards banner | `draftRepository.delete(id)` for that draft row |
-| Successful doc generation | Active draft row deleted; `begin_new_draft()` for next autosave chain |
+| Successful doc generation | Active draft row deleted; `beginNewDraft()` for next autosave chain |
 | Draft > 24 h old | Banner not shown; draft is stale |
 
 ---

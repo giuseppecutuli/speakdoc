@@ -7,32 +7,22 @@ import { SpeechProviderManager } from './SpeechProviderManager';
 import { WaveformVisualizer } from './waveform-visualizer';
 import { cn } from '@/utils/cn';
 import { createAudioUrl, revokeAudioUrl } from '@/utils/audio-url';
-import { resolve_voice_capture_mode, type VoiceCaptureMode } from './speech-preference';
+import { resolveVoiceCaptureMode, type VoiceCaptureMode } from './speech-preference';
 import { AssemblyAIService } from './assemblyai.service';
-import { load_assembly_ai_model_from_storage } from '@/constants/assemblyai-config';
-import { STORAGE_KEYS } from '@/constants/config';
-import { download_blob } from '@/features/export/export.service';
+import { downloadBlob } from '@/features/export/export.service';
 import { draftRepository } from '@/utils/repositories';
+import { finalizeMediaRecorderBlob } from '@/utils/media-recorder-blob';
+import { formatElapsedMmSs } from '@/utils/datetime-display';
+import { VOICE_CAPTURE_UNAVAILABLE } from './voice-recording-messages';
+import { startBrowserSttForRecording } from './web-speech-recording';
+import { buildLocalRecordingDownloadFilename } from './recording-download-filename';
+import {
+  assemblyAiBatchPrecheck,
+  transcribeMicBlobWithAssemblyAi,
+} from './assemblyai-batch-after-mic';
 
 interface VoiceRecorderProps {
   onTranscriptionComplete: (text: string) => void;
-}
-
-function finalize_media_recorder_blob(media_recorder: MediaRecorder, chunks: Blob[]): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    if (media_recorder.state === 'inactive') {
-      const blob =
-        chunks.length > 0 ? new Blob(chunks, { type: media_recorder.mimeType || 'audio/webm' }) : null;
-      resolve(blob);
-      return;
-    }
-    media_recorder.onstop = () => {
-      const blob =
-        chunks.length > 0 ? new Blob(chunks, { type: media_recorder.mimeType || 'audio/webm' }) : null;
-      resolve(blob);
-    };
-    media_recorder.stop();
-  });
 }
 
 export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) => {
@@ -52,44 +42,44 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
 
   const [elapsed, setElapsed] = useState(0);
 
-  const manager_ref = useRef(new SpeechProviderManager());
-  const assembly_service_ref = useRef(new AssemblyAIService());
-  const visualizer_ref = useRef<WaveformVisualizer | null>(null);
-  const canvas_ref = useRef<HTMLCanvasElement>(null);
-  const stream_ref = useRef<MediaStream | null>(null);
-  const media_recorder_ref = useRef<MediaRecorder | null>(null);
-  const audio_chunks_ref = useRef<Blob[]>([]);
-  const audio_url_ref = useRef<string | null>(null);
-  const capture_mode_ref = useRef<VoiceCaptureMode | null>(null);
+  const managerRef = useRef(new SpeechProviderManager());
+  const assemblyServiceRef = useRef(new AssemblyAIService());
+  const visualizerRef = useRef<WaveformVisualizer | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioUrlRef = useRef<string | null>(null);
+  const captureModeRef = useRef<VoiceCaptureMode | null>(null);
 
-  const stop_media_recorder_only = useCallback(() => {
-    const mr = media_recorder_ref.current;
+  const stopMediaRecorderOnly = useCallback(() => {
+    const mr = mediaRecorderRef.current;
     if (mr && mr.state !== 'inactive') {
       mr.stop();
     }
   }, []);
 
-  const stop_speech_and_visualizer = useCallback(() => {
-    manager_ref.current.stop();
-    visualizer_ref.current?.stop();
+  const stopSpeechAndVisualizer = useCallback(() => {
+    managerRef.current.stop();
+    visualizerRef.current?.stop();
   }, []);
 
-  const stop_stream_tracks = useCallback(() => {
-    stream_ref.current?.getTracks().forEach((t) => t.stop());
-    stream_ref.current = null;
+  const stopStreamTracks = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
   }, []);
 
   useEffect(() => {
     return () => {
-      stop_speech_and_visualizer();
-      stop_media_recorder_only();
-      stop_stream_tracks();
-      if (audio_url_ref.current) {
-        revokeAudioUrl(audio_url_ref.current);
-        audio_url_ref.current = null;
+      stopSpeechAndVisualizer();
+      stopMediaRecorderOnly();
+      stopStreamTracks();
+      if (audioUrlRef.current) {
+        revokeAudioUrl(audioUrlRef.current);
+        audioUrlRef.current = null;
       }
     };
-  }, [stop_speech_and_visualizer, stop_media_recorder_only, stop_stream_tracks]);
+  }, [stopSpeechAndVisualizer, stopMediaRecorderOnly, stopStreamTracks]);
 
   useEffect(() => {
     if (status !== 'recording') return;
@@ -97,114 +87,100 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
     return () => clearInterval(id);
   }, [status]);
 
-  const format_elapsed = (seconds: number): string => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
-  const handle_start = async () => {
-    if (audio_url_ref.current) {
-      revokeAudioUrl(audio_url_ref.current);
-      audio_url_ref.current = null;
+  const handleStart = async () => {
+    if (audioUrlRef.current) {
+      revokeAudioUrl(audioUrlRef.current);
+      audioUrlRef.current = null;
     }
     setElapsed(0);
     reset();
     setError(null);
 
-    const mode = resolve_voice_capture_mode();
+    const mode = resolveVoiceCaptureMode();
     if (!mode) {
-      setError(
-        'No speech capture available. Enable Web Speech in a supported browser or add an AssemblyAI API key and choose AssemblyAI (after recording) in Settings.',
-      );
+      setError(VOICE_CAPTURE_UNAVAILABLE);
       setStatus('idle');
       return;
     }
 
-    capture_mode_ref.current = mode;
+    captureModeRef.current = mode;
     setCaptureMode(mode);
-    draftRepository.begin_new_draft();
+    draftRepository.beginNewDraft();
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream_ref.current = stream;
+      streamRef.current = stream;
       lockSession();
       setStatus('recording');
 
       const visualizer = new WaveformVisualizer();
-      visualizer_ref.current = visualizer;
+      visualizerRef.current = visualizer;
       await visualizer.connect(stream);
-      if (canvas_ref.current) visualizer.draw(canvas_ref.current);
+      if (canvasRef.current) visualizer.draw(canvasRef.current);
 
-      audio_chunks_ref.current = [];
-      const media_recorder = new MediaRecorder(stream);
-      media_recorder_ref.current = media_recorder;
-      media_recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audio_chunks_ref.current.push(e.data);
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
-      media_recorder.start();
+      mediaRecorder.start();
 
       if (mode === 'browser_stt') {
-        manager_ref.current.start(
+        startBrowserSttForRecording(
+          managerRef.current,
           speakingLanguage,
-          {
-            onResult: ({ transcript, isFinal }) => appendTranscription(transcript, isFinal),
-            onError: (err) => setError(err),
-            onEnd: () => {},
-          },
-          'web-speech',
+          appendTranscription,
+          setError,
         );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Microphone access denied');
       setStatus('idle');
       setCaptureMode(null);
-      capture_mode_ref.current = null;
+      captureModeRef.current = null;
     }
   };
 
-  const handle_pause = () => {
-    const mode = capture_mode_ref.current;
+  const handlePause = () => {
+    const mode = captureModeRef.current;
     if (mode === 'browser_stt') {
-      manager_ref.current.stop();
+      managerRef.current.stop();
     }
-    visualizer_ref.current?.stop();
+    visualizerRef.current?.stop();
     setStatus('paused');
   };
 
-  const handle_resume = async () => {
-    const mode = capture_mode_ref.current;
+  const handleResume = async () => {
+    const mode = captureModeRef.current;
     setStatus('recording');
-    if (stream_ref.current && canvas_ref.current) {
+    if (streamRef.current && canvasRef.current) {
       const visualizer = new WaveformVisualizer();
-      visualizer_ref.current = visualizer;
-      await visualizer.connect(stream_ref.current);
-      visualizer.draw(canvas_ref.current);
+      visualizerRef.current = visualizer;
+      await visualizer.connect(streamRef.current);
+      visualizer.draw(canvasRef.current);
     }
     if (mode === 'browser_stt') {
-      manager_ref.current.start(
+      startBrowserSttForRecording(
+        managerRef.current,
         speakingLanguage,
-        {
-          onResult: ({ transcript, isFinal }) => appendTranscription(transcript, isFinal),
-          onError: (err) => setError(err),
-          onEnd: () => {},
-        },
-        'web-speech',
+        appendTranscription,
+        setError,
       );
     }
   };
 
-  const handle_stop = async () => {
-    const mode = capture_mode_ref.current;
-    stop_speech_and_visualizer();
-    visualizer_ref.current?.stop();
+  const handleStop = async () => {
+    const mode = captureModeRef.current;
+    stopSpeechAndVisualizer();
+    visualizerRef.current?.stop();
 
-    const mr = media_recorder_ref.current;
-    const chunks = audio_chunks_ref.current;
-    const blob = mr ? await finalize_media_recorder_blob(mr, chunks) : null;
+    const mr = mediaRecorderRef.current;
+    const chunks = audioChunksRef.current;
+    const blob = mr ? await finalizeMediaRecorderBlob(mr, chunks) : null;
 
-    stop_stream_tracks();
-    media_recorder_ref.current = null;
+    stopStreamTracks();
+    mediaRecorderRef.current = null;
     unlockSession();
 
     if (blob && blob.size > 0) {
@@ -212,26 +188,22 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
     }
 
     if (mode === 'assemblyai_batch') {
-      if (!blob || blob.size === 0) {
-        setError('No audio captured. Try recording again.');
+      const pre = assemblyAiBatchPrecheck(blob);
+      if (!pre.ok) {
+        setError(pre.message);
         setStatus('idle');
         setCaptureMode(null);
-        capture_mode_ref.current = null;
-        return;
-      }
-      const api_key = localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_API_KEY)?.trim();
-      if (!api_key) {
-        setError('AssemblyAI API key not set. Configure it in Settings.');
-        setStatus('idle');
-        setCaptureMode(null);
-        capture_mode_ref.current = null;
+        captureModeRef.current = null;
         return;
       }
       setStatus('processing');
       try {
-        assembly_service_ref.current.configure(api_key);
-        const model = load_assembly_ai_model_from_storage();
-        const text = await assembly_service_ref.current.transcribe(blob, speakingLanguage, model);
+        const text = await transcribeMicBlobWithAssemblyAi(
+          pre.blob,
+          pre.apiKey,
+          speakingLanguage,
+          assemblyServiceRef.current,
+        );
         setTranscription(text);
         setStatus('done');
         if (text.trim()) onTranscriptionComplete(text);
@@ -240,70 +212,68 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
         setStatus('idle');
       } finally {
         setCaptureMode(null);
-        capture_mode_ref.current = null;
+        captureModeRef.current = null;
       }
       return;
     }
 
     setStatus('done');
     setCaptureMode(null);
-    capture_mode_ref.current = null;
+    captureModeRef.current = null;
     const final = useRecordingStore.getState().transcription;
     if (final.trim()) onTranscriptionComplete(final);
   };
 
-  const handle_download_audio = () => {
+  const handleDownloadAudio = () => {
     const blob = useRecordingStore.getState().audioBlob;
     if (!blob) return;
-    const ext = blob.type.includes('webm') ? 'webm' : 'audio';
-    const stamp = new Date().toISOString().replaceAll(/[:.]/g, '-').slice(0, 19);
-    download_blob(blob, `recording-${stamp}.${ext}`);
+    downloadBlob(blob, buildLocalRecordingDownloadFilename(blob));
   };
 
-  const is_idle = status === 'idle';
-  const is_recording = status === 'recording';
-  const is_paused = status === 'paused';
-  const is_done = status === 'done';
-  const is_processing = status === 'processing';
+  const isIdle = status === 'idle';
+  const isRecording = status === 'recording';
+  const isPaused = status === 'paused';
+  const isDone = status === 'done';
+  const isProcessing = status === 'processing';
 
   useKeyboardShortcuts({
     onSpaceToggle: useCallback(() => {
-      if (is_idle) void handle_start();
-      else if (is_recording || is_paused) void handle_stop();
+      if (isIdle) void handleStart();
+      else if (isRecording || isPaused) void handleStop();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [is_idle, is_recording, is_paused]),
+    }, [isIdle, isRecording, isPaused]),
   });
 
-  if ((is_done || is_processing) && audioBlob && !audio_url_ref.current) {
-    audio_url_ref.current = createAudioUrl(audioBlob);
+  if ((isDone || isProcessing) && audioBlob && !audioUrlRef.current) {
+    audioUrlRef.current = createAudioUrl(audioBlob);
   }
 
-  let waveform_overlay = '';
-  if (is_idle) waveform_overlay = 'Press record to start';
-  else if (is_paused) waveform_overlay = 'Paused';
-  else if (is_processing) waveform_overlay = 'Transcribing…';
-  else if (is_done) waveform_overlay = 'Recording complete';
+  let waveformOverlay = '';
+  if (isIdle) waveformOverlay = 'Press record to start';
+  else if (isPaused) waveformOverlay = 'Paused';
+  else if (isProcessing) waveformOverlay = 'Transcribing…';
+  else if (isDone) waveformOverlay = 'Recording complete';
 
   return (
     <div className="flex flex-col gap-4">
       <div
         className={cn(
           'relative h-16 w-full overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-700',
-          is_recording && 'bg-indigo-50 dark:bg-indigo-900/30',
+          isRecording && 'bg-indigo-50 dark:bg-indigo-900/30',
         )}
       >
-        <canvas ref={canvas_ref} className="h-full w-full" />
-        {!is_recording && waveform_overlay && (
+        <canvas ref={canvasRef} className="h-full w-full" />
+        {!isRecording && waveformOverlay && (
           <div className="absolute inset-0 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
-            {waveform_overlay}
+            {waveformOverlay}
           </div>
         )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        {is_idle && (
+        {isIdle && (
           <button
-            onClick={() => void handle_start()}
+            onClick={() => void handleStart()}
             className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
             aria-label="Start recording"
           >
@@ -312,10 +282,10 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
           </button>
         )}
 
-        {is_recording && (
+        {isRecording && (
           <>
             <button
-              onClick={handle_pause}
+              onClick={handlePause}
               className="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
               aria-label="Pause recording"
             >
@@ -323,7 +293,7 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
               Pause
             </button>
             <button
-              onClick={() => void handle_stop()}
+              onClick={() => void handleStop()}
               className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
               aria-label="Stop recording"
             >
@@ -333,10 +303,10 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
           </>
         )}
 
-        {is_paused && (
+        {isPaused && (
           <>
             <button
-              onClick={() => void handle_resume()}
+              onClick={() => void handleResume()}
               className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
               aria-label="Resume recording"
             >
@@ -344,7 +314,7 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
               Resume
             </button>
             <button
-              onClick={() => void handle_stop()}
+              onClick={() => void handleStop()}
               className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
               aria-label="Stop recording"
             >
@@ -354,10 +324,10 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
           </>
         )}
 
-        {is_done && audioBlob && (
+        {isDone && audioBlob && (
           <button
             type="button"
-            onClick={handle_download_audio}
+            onClick={handleDownloadAudio}
             className="flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             aria-label="Download audio recording"
           >
@@ -366,12 +336,12 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
           </button>
         )}
 
-        {is_done && (
+        {isDone && (
           <button
             onClick={() => {
               reset();
               unlockSession();
-              draftRepository.begin_new_draft();
+              draftRepository.beginNewDraft();
             }}
             className="flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             aria-label="New recording"
@@ -381,22 +351,22 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
           </button>
         )}
 
-        {is_recording && (
+        {isRecording && (
           <span className="flex items-center gap-1.5 text-sm text-red-600 font-medium">
             <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            Recording · {format_elapsed(elapsed)}
+            Recording · {formatElapsedMmSs(elapsed)}
           </span>
         )}
 
-        {is_processing && (
+        {isProcessing && (
           <span className="text-sm text-slate-600 dark:text-slate-300">Transcribing with AssemblyAI…</span>
         )}
       </div>
 
-      {(is_done || is_processing) && audio_url_ref.current && (
+      {(isDone || isProcessing) && audioUrlRef.current && (
         <audio
           controls
-          src={audio_url_ref.current}
+          src={audioUrlRef.current}
           className="w-full"
           aria-label="Recording playback"
           data-testid="audio-playback"

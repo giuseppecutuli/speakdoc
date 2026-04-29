@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import type { AIBackend } from '@/types/ai';
 import { detectActiveBackend } from './ai-manager.service';
 import { cn } from '@/utils/cn';
+import { deferReactState } from '@/utils/defer-react-state';
 
 interface BackendConfig {
   label: string;
@@ -42,8 +43,10 @@ export const AIProvider = ({ refreshKey = 0, className }: AIProviderProps) => {
   const [backend, setBackend] = useState<AIBackend | null>(null);
 
   useEffect(() => {
-    setBackend(null); // show loading while detecting
-    detectActiveBackend().then(setBackend);
+    deferReactState(() => {
+      setBackend(null); // show loading while detecting
+    });
+    void detectActiveBackend().then(setBackend);
   }, [refreshKey]);
 
   if (backend === null) {

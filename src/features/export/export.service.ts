@@ -24,13 +24,13 @@ export const downloadAsFile = (
   const ext = EXTENSION[format];
   const mime = MIME_TYPE[format];
   const blob = new Blob([text], { type: mime });
-  download_blob(blob, `${filename}.${ext}`);
+  downloadBlob(blob, `${filename}.${ext}`);
 };
 
 /**
  * Triggers a file download for an arbitrary Blob (e.g. recorded audio).
  */
-export const download_blob = (blob: Blob, filename: string): void => {
+export const downloadBlob = (blob: Blob, filename: string): void => {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

@@ -8,12 +8,14 @@ import { AssemblyAIGuide } from '@/components/AssemblyAIGuide';
 import type { AIBackend } from '@/types/ai';
 import { STORAGE_KEYS } from '@/constants/config';
 import {
-  load_speech_preference,
-  save_speech_preference,
+  loadSpeechPreference,
+  saveSpeechPreference,
   type SpeechPreference,
 } from '@/features/voice-input/speech-preference';
 import { ASSEMBLYAI_MODELS, DEFAULT_ASSEMBLYAI_MODEL, type AssemblyAIModel } from '@/constants/assemblyai-config';
 import { sessionRepository, feedbackRepository, draftRepository } from '@/utils/repositories';
+import { deferReactState } from '@/utils/defer-react-state';
+import { stripSessionAudioForExport } from '@/features/learning/session-export';
 
 const PROVIDER_OPTIONS: { value: SpeechPreference; label: string; description: string }[] = [
   {
@@ -55,7 +57,7 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
   const [model, setModel] = useState('');
   const [activeBackend, setActiveBackend] = useState<AIBackend>('none');
   const [saved, setSaved] = useState(false);
-  const [speechPreference, setSpeechPreference] = useState<SpeechPreference>(load_speech_preference);
+  const [speechPreference, setSpeechPreference] = useState<SpeechPreference>(loadSpeechPreference);
   const [assemblyAIKey, setAssemblyAIKey] = useState(loadAssemblyAIKey);
   const [assemblyAIModel, setAssemblyAIModel] = useState<AssemblyAIModel>(loadAssemblyAIModel);
   const [showAssemblyAIKey, setShowAssemblyAIKey] = useState(false);
@@ -64,10 +66,12 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
 
   useEffect(() => {
     const config = loadAIConfig();
-    setEndpoint(config.apiEndpoint);
-    setApiKey(config.apiKey);
-    setModel(config.model);
-    setSpeechPreference(load_speech_preference());
+    deferReactState(() => {
+      setEndpoint(config.apiEndpoint);
+      setApiKey(config.apiKey);
+      setModel(config.model);
+      setSpeechPreference(loadSpeechPreference());
+    });
     isGeminiNanoAvailable().then((available) => {
       setActiveBackend(available ? 'gemini-nano' : config.apiEndpoint ? 'external-api' : 'none');
     });
@@ -75,7 +79,7 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
 
   const handleSpeechPreferenceChange = (value: SpeechPreference) => {
     setSpeechPreference(value);
-    save_speech_preference(value);
+    saveSpeechPreference(value);
   };
 
   const handleAssemblyAISave = () => {
@@ -93,7 +97,7 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
 
   const handleExportData = async () => {
     const sessions_raw = await sessionRepository.getAll();
-    const sessions = sessions_raw.map(({ audioBlob: _omit, ...rest }) => ({ ...rest }));
+    const sessions = sessions_raw.map(stripSessionAudioForExport);
     const payload = { sessions, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

@@ -26,10 +26,14 @@ import { downloadAsFile } from '@/features/export/export.service';
 import { sessionRepository, draftRepository } from '@/utils/repositories';
 import { SESSION_RETENTION_DAYS } from '@/constants/config';
 import type { DocumentationSession, SessionDraft } from '@/types/session';
-import type { OutputFormat } from '@/types/documentation';
-import type { LanguageCode } from '@/types/language';
-
-const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+import {
+  buildWorkRestoreSnapshot,
+  applyWorkRestoreSnapshot,
+} from '@/features/learning/work-restore';
+import {
+  DRAFT_RESTORE_BANNER_MAX_AGE_MS,
+  shouldOfferDraftRestoreBanner,
+} from '@/features/learning/draft-restore';
 
 export const App = () => {
   const [view, setView] = useState<'main' | 'settings'>('main');
@@ -58,8 +62,7 @@ export const App = () => {
     // Check for unsaved draft on mount
     draftRepository.getLatest().then((draft) => {
       if (!draft) return;
-      const age = Date.now() - new Date(draft.savedAt).getTime();
-      if (age < DRAFT_MAX_AGE_MS && (draft.transcription || draft.generatedDoc)) {
+      if (shouldOfferDraftRestoreBanner(draft, DRAFT_RESTORE_BANNER_MAX_AGE_MS)) {
         setPendingDraft(draft);
       }
     }).catch(() => undefined);
@@ -75,22 +78,29 @@ export const App = () => {
     resetDoc();
   }, [unlockSession, resetDoc]);
 
-  const handleRestoreSession = useCallback((session: DocumentationSession) => {
-    setLanguages(session.speakingLanguage as LanguageCode, session.outputLanguage as LanguageCode);
-    setTranscription(session.transcription);
-    setAudioBlob(session.audioBlob ?? null);
-    setFormat(session.format as OutputFormat);
-    setFormattedOutput(session.generatedDoc);
-    setShowLanguageModal(false);
-  }, [setLanguages, setTranscription, setAudioBlob, setFormat, setFormattedOutput]);
+  const handleRestoreSession = useCallback(
+    (session: DocumentationSession) => {
+      applyWorkRestoreSnapshot(buildWorkRestoreSnapshot(session), {
+        setLanguages,
+        setTranscription,
+        setAudioBlob,
+        setFormat,
+        setFormattedOutput,
+      });
+      setShowLanguageModal(false);
+    },
+    [setLanguages, setTranscription, setAudioBlob, setFormat, setFormattedOutput],
+  );
 
-  const apply_draft = useCallback(
+  const applyDraft = useCallback(
     (draft: SessionDraft) => {
-      setLanguages(draft.speakingLanguage as LanguageCode, draft.outputLanguage as LanguageCode);
-      setTranscription(draft.transcription);
-      setAudioBlob(draft.audioBlob ?? null);
-      setFormat(draft.format as OutputFormat);
-      setFormattedOutput(draft.generatedDoc);
+      applyWorkRestoreSnapshot(buildWorkRestoreSnapshot(draft), {
+        setLanguages,
+        setTranscription,
+        setAudioBlob,
+        setFormat,
+        setFormattedOutput,
+      });
       setShowLanguageModal(false);
     },
     [setLanguages, setTranscription, setAudioBlob, setFormat, setFormattedOutput],
@@ -98,16 +108,16 @@ export const App = () => {
 
   const handleRestoreDraft = useCallback(() => {
     if (!pendingDraft) return;
-    apply_draft(pendingDraft);
+    applyDraft(pendingDraft);
     setPendingDraft(null);
-  }, [pendingDraft, apply_draft]);
+  }, [pendingDraft, applyDraft]);
 
-  const handle_restore_draft_from_list = useCallback(
+  const handleRestoreDraftFromList = useCallback(
     (draft: SessionDraft) => {
-      apply_draft(draft);
+      applyDraft(draft);
       setPendingDraft(null);
     },
-    [apply_draft],
+    [applyDraft],
   );
 
   const handleDismissDraft = useCallback(() => {
@@ -171,7 +181,7 @@ export const App = () => {
 
         <LearningPanel />
 
-        <InProgressDrafts onRestore={handle_restore_draft_from_list} />
+        <InProgressDrafts onRestore={handleRestoreDraftFromList} />
 
         <TranscriptionDisplay />
 

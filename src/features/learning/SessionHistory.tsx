@@ -2,14 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Clock, Copy, Download, ChevronDown, ChevronUp, Trash2, RotateCcw, Pencil, Check } from 'lucide-react';
 import { sessionRepository } from '@/utils/repositories';
 import type { DocumentationSession } from '@/types/session';
-import { copyToClipboard, downloadAsFile, download_blob } from '@/features/export/export.service';
-import type { OutputFormat } from '@/types/documentation';
-import { build_default_session_name } from '@/utils/session-naming';
-
-const formatDate = (date: Date): string =>
-  new Date(date).toLocaleDateString(undefined, { dateStyle: 'medium' }) +
-  ' ' +
-  new Date(date).toLocaleTimeString(undefined, { timeStyle: 'short' });
+import { copyToClipboard, downloadAsFile, downloadBlob } from '@/features/export/export.service';
+import { coerceOutputFormat } from '@/types/documentation';
+import { buildDefaultSessionName } from '@/utils/session-naming';
+import { getStoredAudioBlob } from '@/utils/audio-chunk-storage';
+import { formatDateTimeMedium } from '@/utils/datetime-display';
+import { audioBlobDownloadExtension } from '@/utils/audio-blob-extension';
+import { deferReactState } from '@/utils/defer-react-state';
 
 const formatSize = (text: string): string => {
   const kb = Math.ceil(new Blob([text]).size / 1024);
@@ -33,15 +32,18 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
   const [nameDraft, setNameDraft] = useState(session.name ?? '');
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
-  const display_title =
-    session.name?.trim() || build_default_session_name(new Date(session.createdAt));
+  const displayTitle =
+    session.name?.trim() || buildDefaultSessionName(new Date(session.createdAt));
 
   useEffect(() => {
     if (isEditingName) nameInputRef.current?.focus();
   }, [isEditingName]);
 
   useEffect(() => {
-    setNameDraft(session.name ?? '');
+    const next = session.name ?? '';
+    deferReactState(() => {
+      setNameDraft(next);
+    });
   }, [session.name, session.id]);
 
   const handleCopy = async () => {
@@ -55,15 +57,15 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
   };
 
   const handleDownload = () => {
-    downloadAsFile(session.generatedDoc, session.format as OutputFormat);
+    downloadAsFile(session.generatedDoc, coerceOutputFormat(String(session.format)));
   };
 
-  const handle_download_audio = () => {
-    const blob = session.audioBlob;
+  const handleDownloadAudio = () => {
+    const blob = getStoredAudioBlob(session);
     if (!blob) return;
-    const ext = blob.type.includes('webm') ? 'webm' : 'audio';
-    const safe = display_title.replaceAll(/[/\\?%*:|"<>]/g, '-').slice(0, 80);
-    download_blob(blob, `${safe}.${ext}`);
+    const ext = audioBlobDownloadExtension(blob);
+    const safe = displayTitle.replaceAll(/[/\\?%*:|"<>]/g, '-').slice(0, 80);
+    downloadBlob(blob, `${safe}.${ext}`);
   };
 
   const handleSaveName = async () => {
@@ -119,8 +121,8 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
             </div>
           ) : (
             <div className="flex items-center gap-1 group mb-0.5">
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate" title={display_title}>
-                {display_title}
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate" title={displayTitle}>
+                {displayTitle}
               </span>
               <button
                 type="button"
@@ -145,7 +147,7 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
           <div className="space-y-0.5">
             <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-300">{preview}</p>
             <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span>{formatDate(session.createdAt)}</span>
+              <span>{formatDateTimeMedium(session.createdAt)}</span>
               <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 font-mono">
                 {session.speakingLanguage}→{session.outputLanguage}
               </span>
@@ -217,10 +219,10 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
               <Download className="h-3.5 w-3.5" />
               Download doc
             </button>
-            {session.audioBlob && (
+            {getStoredAudioBlob(session) && (
               <button
                 type="button"
-                onClick={handle_download_audio}
+                onClick={handleDownloadAudio}
                 className="flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                 aria-label="Download session audio"
               >

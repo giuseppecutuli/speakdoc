@@ -3,6 +3,7 @@ import * as Select from '@radix-ui/react-select';
 import { ChevronDown, Check, Languages } from 'lucide-react';
 import { useState } from 'react';
 import type { LanguageCode } from '@/types/language';
+import { coerceLanguageCode } from '@/types/language';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { cn } from '@/utils/cn';
@@ -25,7 +26,7 @@ const LanguageSelect = ({
 }) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
-    <Select.Root value={value} onValueChange={(v) => onChange(v as LanguageCode)} disabled={disabled}>
+    <Select.Root value={value} onValueChange={(v) => onChange(coerceLanguageCode(v))} disabled={disabled}>
       <Select.Trigger
         className={cn(
           'flex h-10 w-full items-center justify-between rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100',

@@ -4,7 +4,7 @@ import { AssemblyAIService } from './assemblyai.service';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { STORAGE_KEYS } from '@/constants/config';
-import { load_assembly_ai_model_from_storage } from '@/constants/assemblyai-config';
+import { loadAssemblyAiModelFromStorage } from '@/constants/assemblyai-config';
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -48,7 +48,7 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
       serviceRef.current.configure(key);
       setPhase('transcribing');
 
-      const model = load_assembly_ai_model_from_storage();
+      const model = loadAssemblyAiModelFromStorage();
       const text = await serviceRef.current.transcribe(file, speakingLanguage, model);
 
       appendTranscription(text, true);

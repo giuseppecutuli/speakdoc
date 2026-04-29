@@ -1,5 +1,5 @@
 import type { LanguageCode } from '@/types/language';
-import type { AIBackend } from '@/types/ai';
+import type { AIBackend, DocumentationAiBackend } from '@/types/ai';
 import { AINotConfiguredError } from '@/types/ai';
 import { buildSystemPrompt, buildCompactPrompt } from '@/constants/prompts';
 import { DEFAULT_TEMPLATE_ID } from '@/constants/doc-templates';
@@ -18,7 +18,7 @@ export async function* generateDocumentation(
   speakingLanguage: LanguageCode,
   outputLanguage: LanguageCode,
   templateId: TemplateId = DEFAULT_TEMPLATE_ID,
-): AsyncGenerator<{ chunk: string; backend: AIBackend }> {
+): AsyncGenerator<{ chunk: string; backend: DocumentationAiBackend }> {
   if (await isGeminiNanoAvailable()) {
     // Gemini Nano has a small context window (~1k–4k tokens).
     // Use the compact prompt to leave room for the transcription and output.

@@ -21,7 +21,7 @@ export const ASSEMBLYAI_MODELS: readonly AssemblyAIModel[] = ['universal-2', 'un
 export const DEFAULT_ASSEMBLYAI_MODEL: AssemblyAIModel = 'universal-2';
 
 /** Reads the saved batch model from localStorage (same key as Settings). */
-export function load_assembly_ai_model_from_storage(): AssemblyAIModel {
+export function loadAssemblyAiModelFromStorage(): AssemblyAIModel {
   const raw = localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_MODEL) as AssemblyAIModel | null;
   if (raw === 'universal-2' || raw === 'universal-3-pro') return raw;
   return DEFAULT_ASSEMBLYAI_MODEL;

@@ -2,10 +2,11 @@ import { db } from '@/utils/db';
 import { STORAGE_KEYS } from '@/constants/config';
 import type { SessionDraft } from '@/types/session';
 import type { IDraftRepository } from './IDraftRepository';
-import { build_default_draft_title } from '@/utils/session-naming';
+import { buildDefaultDraftTitle } from '@/utils/session-naming';
+import { applyAudioToDraftRow } from './draft-audio-merge';
 
 export class IndexedDBDraftRepository implements IDraftRepository {
-  begin_new_draft(): void {
+  beginNewDraft(): void {
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_DRAFT_ID);
   }
 
@@ -17,30 +18,26 @@ export class IndexedDBDraftRepository implements IDraftRepository {
       if (!Number.isNaN(id)) {
         const existing = await db.drafts.get(id);
         if (existing) {
-          await db.drafts.update(id, {
+          const row: SessionDraft = {
+            ...existing,
             transcription: draft.transcription,
             generatedDoc: draft.generatedDoc,
             format: draft.format,
             speakingLanguage: draft.speakingLanguage,
             outputLanguage: draft.outputLanguage,
-            audioBlob: draft.audioBlob,
-            savedAt: now,
-            updatedAt: now,
-          });
-          return {
-            ...existing,
-            ...draft,
-            id,
             title: existing.title ?? draft.title,
             savedAt: now,
             updatedAt: now,
           };
+          applyAudioToDraftRow(row, draft);
+          await db.drafts.put(row);
+          return row;
         }
       }
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_DRAFT_ID);
     }
 
-    const title = draft.title?.trim() || build_default_draft_title(now);
+    const title = draft.title?.trim() || buildDefaultDraftTitle(now);
     const id = await db.drafts.add({
       ...draft,
       title,
@@ -55,7 +52,7 @@ export class IndexedDBDraftRepository implements IDraftRepository {
     return db.drafts.orderBy('savedAt').last();
   }
 
-  async list_recent(limit: number): Promise<SessionDraft[]> {
+  async listRecent(limit: number): Promise<SessionDraft[]> {
     return db.drafts.orderBy('savedAt').reverse().limit(limit).toArray();
   }
 

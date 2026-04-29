@@ -31,7 +31,6 @@ vi.mock('@/features/voice-input/speech-recognition.service', () => {
         this.onResultCb = onResult;
         this.onErrorCb = onError;
         this.onEndCb = onEnd;
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
         lastInstance = this as unknown as ServiceInstance;
       }
     },

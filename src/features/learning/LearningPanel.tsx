@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { ThumbsUp, ThumbsDown, Lightbulb } from 'lucide-react';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { sessionRepository, feedbackRepository } from '@/utils/repositories';
+import type { SessionFeedbackRating } from '@/types/session';
 import { analyzePatterns, generateSuggestions } from './learning-engine.service';
 
 interface SuggestionItem {
   text: string;
-  feedback: 'helpful' | 'not-helpful' | null;
+  feedback: SessionFeedbackRating | null;
 }
 
 export const LearningPanel = () => {
@@ -34,7 +35,7 @@ export const LearningPanel = () => {
     return () => { cancelled = true; };
   }, [outputLanguage]);
 
-  const handleFeedback = async (index: number, rating: 'helpful' | 'not-helpful') => {
+  const handleFeedback = async (index: number, rating: SessionFeedbackRating) => {
     setSuggestions((prev) =>
       prev.map((s, i) => (i === index ? { ...s, feedback: rating } : s)),
     );

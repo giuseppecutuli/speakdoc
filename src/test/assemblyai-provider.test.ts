@@ -10,7 +10,9 @@ const { mockTranscriber, mockStreamingTranscriber, mockAssemblyAI } = vi.hoisted
     sendAudio: vi.fn(),
     close: vi.fn().mockResolvedValue(undefined),
   };
-  const mockStreamingTranscriber = vi.fn(() => mockTranscriber);
+  const mockStreamingTranscriber = vi.fn(function () {
+    return mockTranscriber;
+  });
   const mockAssemblyAI = vi.fn(function () {
     return { streaming: { transcriber: mockStreamingTranscriber } };
   });

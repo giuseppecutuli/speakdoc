@@ -21,11 +21,7 @@ import {
   transcribeMicBlobWithAssemblyAi,
 } from './assemblyai-batch-after-mic';
 
-interface VoiceRecorderProps {
-  onTranscriptionComplete: (text: string) => void;
-}
-
-export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) => {
+export const VoiceRecorder = () => {
   const {
     status,
     audioBlob,
@@ -37,6 +33,7 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
     setError,
     reset,
     setTranscription,
+    beginAnotherTake,
   } = useRecordingStore();
   const { speakingLanguage, lockSession, unlockSession } = useLanguageStore();
 
@@ -51,6 +48,20 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
   const audioChunksRef = useRef<Blob[]>([]);
   const audioUrlRef = useRef<string | null>(null);
   const captureModeRef = useRef<VoiceCaptureMode | null>(null);
+  /** Transcription text to prepend when merging after a new mic session (cleared on flush). */
+  const priorTranscriptionRef = useRef('');
+
+  const flushMergedTranscription = useCallback((session_text: string) => {
+    const prior = priorTranscriptionRef.current.trim();
+    priorTranscriptionRef.current = '';
+    const sess = session_text.trim();
+    if (!prior && !sess) {
+      setStatus('idle');
+      return;
+    }
+    const merged = prior && sess ? `${prior}\n\n${sess}` : prior || sess;
+    setTranscription(merged);
+  }, [setStatus, setTranscription]);
 
   const stopMediaRecorderOnly = useCallback(() => {
     const mr = mediaRecorderRef.current;
@@ -93,8 +104,11 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
       audioUrlRef.current = null;
     }
     setElapsed(0);
-    reset();
     setError(null);
+
+    if (useRecordingStore.getState().status === 'done') {
+      beginAnotherTake();
+    }
 
     const mode = resolveVoiceCaptureMode();
     if (!mode) {
@@ -109,6 +123,8 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      priorTranscriptionRef.current = useRecordingStore.getState().transcription.trim();
+      reset();
       streamRef.current = stream;
       lockSession();
       setStatus('recording');
@@ -190,6 +206,7 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
     if (mode === 'assemblyai_batch') {
       const pre = assemblyAiBatchPrecheck(blob);
       if (!pre.ok) {
+        priorTranscriptionRef.current = '';
         setError(pre.message);
         setStatus('idle');
         setCaptureMode(null);
@@ -204,10 +221,9 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
           speakingLanguage,
           assemblyServiceRef.current,
         );
-        setTranscription(text);
-        setStatus('done');
-        if (text.trim()) onTranscriptionComplete(text);
+        flushMergedTranscription(text);
       } catch (e) {
+        priorTranscriptionRef.current = '';
         setError(e instanceof Error ? e.message : 'Transcription failed');
         setStatus('idle');
       } finally {
@@ -217,11 +233,10 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
       return;
     }
 
-    setStatus('done');
     setCaptureMode(null);
     captureModeRef.current = null;
     const final = useRecordingStore.getState().transcription;
-    if (final.trim()) onTranscriptionComplete(final);
+    flushMergedTranscription(final);
   };
 
   const handleDownloadAudio = () => {
@@ -238,10 +253,10 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
 
   useKeyboardShortcuts({
     onSpaceToggle: useCallback(() => {
-      if (isIdle) void handleStart();
+      if (isIdle || isDone) void handleStart();
       else if (isRecording || isPaused) void handleStop();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isIdle, isRecording, isPaused]),
+    }, [isIdle, isDone, isRecording, isPaused]),
   });
 
   if ((isDone || isProcessing) && audioBlob && !audioUrlRef.current) {
@@ -270,14 +285,14 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        {isIdle && (
+        {(isIdle || isDone) && (
           <button
             onClick={() => void handleStart()}
             className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-            aria-label="Start recording"
+            aria-label={isDone ? 'Record another take' : 'Start recording'}
           >
             <Mic className="h-4 w-4" />
-            Record
+            {isDone ? 'Record again' : 'Record'}
           </button>
         )}
 

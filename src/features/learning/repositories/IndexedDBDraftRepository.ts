@@ -52,6 +52,23 @@ export class IndexedDBDraftRepository implements IDraftRepository {
     return db.drafts.orderBy('savedAt').last();
   }
 
+  async getById(id: number): Promise<SessionDraft | undefined> {
+    return db.drafts.get(id);
+  }
+
+  async update(id: number, changes: Partial<Omit<SessionDraft, 'id' | 'savedAt'>>): Promise<void> {
+    const existing = await db.drafts.get(id);
+    if (!existing) return;
+    const now = new Date();
+    await db.drafts.put({
+      ...existing,
+      ...changes,
+      id: existing.id,
+      savedAt: existing.savedAt,
+      updatedAt: now,
+    } as SessionDraft);
+  }
+
   async listRecent(limit: number): Promise<SessionDraft[]> {
     return db.drafts.orderBy('savedAt').reverse().limit(limit).toArray();
   }

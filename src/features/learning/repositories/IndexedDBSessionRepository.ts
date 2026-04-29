@@ -12,6 +12,10 @@ export class IndexedDBSessionRepository implements ISessionRepository {
     return db.sessions.toArray();
   }
 
+  getById(id: number): Promise<DocumentationSession | undefined> {
+    return db.sessions.get(id);
+  }
+
   getRecent(limit: number): Promise<DocumentationSession[]> {
     return db.sessions.orderBy('createdAt').reverse().limit(limit).toArray();
   }

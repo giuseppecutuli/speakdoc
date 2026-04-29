@@ -3,6 +3,7 @@ import type { DocumentationSession, SessionFeedback } from '@/types/session';
 export interface ISessionRepository {
   save(session: Omit<DocumentationSession, 'id'>): Promise<DocumentationSession>;
   update(id: number, changes: Partial<DocumentationSession>): Promise<void>;
+  getById(id: number): Promise<DocumentationSession | undefined>;
   getAll(): Promise<DocumentationSession[]>;
   getRecent(limit: number): Promise<DocumentationSession[]>;
   delete(id: number): Promise<void>;

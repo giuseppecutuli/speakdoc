@@ -16,16 +16,12 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 const loadAssemblyAIKey = (): string =>
   localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_API_KEY) ?? '';
 
-interface AudioFileImporterProps {
-  onTranscriptionComplete: (text: string) => void;
-}
-
 type Phase = 'idle' | 'transcribing';
 
-export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporterProps) => {
+export const AudioFileImporter = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const serviceRef = useRef(new AssemblyAIService());
-  const { appendTranscription, reset, setStatus } = useRecordingStore();
+  const { appendSegmentBlock, setStatus } = useRecordingStore();
   const { speakingLanguage } = useLanguageStore();
   const [phase, setPhase] = useState<Phase>('idle');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -41,7 +37,6 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
       return;
     }
 
-    reset();
     setLocalError(null);
 
     try {
@@ -51,9 +46,7 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
       const model = loadAssemblyAiModelFromStorage();
       const text = await serviceRef.current.transcribe(file, speakingLanguage, model);
 
-      appendTranscription(text, true);
-      setStatus('done');
-      onTranscriptionComplete(text);
+      appendSegmentBlock(text);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Transcription failed';
       setLocalError(message);

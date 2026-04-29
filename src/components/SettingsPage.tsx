@@ -7,23 +7,33 @@ import { GeminiNanoGuide } from '@/features/ai-integration/GeminiNanoGuide';
 import { AssemblyAIGuide } from '@/components/AssemblyAIGuide';
 import type { AIBackend } from '@/types/ai';
 import { STORAGE_KEYS } from '@/constants/config';
-import type { SpeechProviderName } from '@/features/voice-input/types/speech-provider';
+import {
+  loadSpeechPreference,
+  saveSpeechPreference,
+  type SpeechPreference,
+} from '@/features/voice-input/speech-preference';
 import { ASSEMBLYAI_MODELS, DEFAULT_ASSEMBLYAI_MODEL, type AssemblyAIModel } from '@/constants/assemblyai-config';
-import { sessionRepository, feedbackRepository } from '@/utils/repositories';
-
-type SpeechPreference = 'auto' | SpeechProviderName;
+import { sessionRepository, feedbackRepository, draftRepository } from '@/utils/repositories';
+import { deferReactState } from '@/utils/defer-react-state';
+import { stripSessionAudioForExport } from '@/features/learning/session-export';
 
 const PROVIDER_OPTIONS: { value: SpeechPreference; label: string; description: string }[] = [
-  { value: 'auto', label: 'Auto', description: 'Use Web Speech API when available, fall back to AssemblyAI' },
-  { value: 'web-speech', label: 'Web Speech API', description: 'Browser built-in — online, real-time' },
-  { value: 'assemblyai', label: 'AssemblyAI', description: 'Cloud transcription — high accuracy (~97%), requires API key' },
+  {
+    value: 'auto',
+    label: 'Auto',
+    description: 'Prefer browser speech-to-text; if unavailable, record audio and transcribe with AssemblyAI after stop',
+  },
+  {
+    value: 'web-speech',
+    label: 'Web Speech API',
+    description: 'Browser built-in — real-time transcription while you speak',
+  },
+  {
+    value: 'assemblyai-batch',
+    label: 'AssemblyAI (after recording)',
+    description: 'Record audio only; high-accuracy transcription when you press Stop (requires API key)',
+  },
 ];
-
-const loadSpeechPreference = (): SpeechPreference =>
-  (localStorage.getItem(STORAGE_KEYS.SPEECH_PROVIDER) as SpeechPreference) ?? 'auto';
-
-const saveSpeechPreference = (value: SpeechPreference) =>
-  localStorage.setItem(STORAGE_KEYS.SPEECH_PROVIDER, value);
 
 const loadAssemblyAIKey = (): string =>
   localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_API_KEY) ?? '';
@@ -56,10 +66,12 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
 
   useEffect(() => {
     const config = loadAIConfig();
-    setEndpoint(config.apiEndpoint);
-    setApiKey(config.apiKey);
-    setModel(config.model);
-    setSpeechPreference(loadSpeechPreference());
+    deferReactState(() => {
+      setEndpoint(config.apiEndpoint);
+      setApiKey(config.apiKey);
+      setModel(config.model);
+      setSpeechPreference(loadSpeechPreference());
+    });
     isGeminiNanoAvailable().then((available) => {
       setActiveBackend(available ? 'gemini-nano' : config.apiEndpoint ? 'external-api' : 'none');
     });
@@ -84,7 +96,8 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
   };
 
   const handleExportData = async () => {
-    const sessions = await sessionRepository.getAll();
+    const sessions_raw = await sessionRepository.getAll();
+    const sessions = sessions_raw.map(stripSessionAudioForExport);
     const payload = { sessions, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -98,7 +111,7 @@ export const SettingsPage = ({ onBack }: SettingsPageProps) => {
   const handleClearData = async () => {
     setClearState('clearing');
     try {
-      await Promise.all([sessionRepository.clear(), feedbackRepository.clear()]);
+      await Promise.all([sessionRepository.clear(), feedbackRepository.clear(), draftRepository.clear()]);
       setClearState('cleared');
       setTimeout(() => setClearState('idle'), 2000);
     } catch {

@@ -1,5 +1,6 @@
 import type { LanguageCode } from '@/types/language';
 import type { StreamingSpeechModel } from 'assemblyai';
+import { STORAGE_KEYS } from '@/constants/config';
 
 export type AssemblyAIModel = 'universal-2' | 'universal-3-pro';
 
@@ -18,3 +19,10 @@ export const ASSEMBLYAI_STREAMING_MODEL_MAP: Record<LanguageCode, StreamingSpeec
 export const ASSEMBLYAI_MODELS: readonly AssemblyAIModel[] = ['universal-2', 'universal-3-pro'] as const;
 
 export const DEFAULT_ASSEMBLYAI_MODEL: AssemblyAIModel = 'universal-2';
+
+/** Reads the saved batch model from localStorage (same key as Settings). */
+export function loadAssemblyAiModelFromStorage(): AssemblyAIModel {
+  const raw = localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_MODEL) as AssemblyAIModel | null;
+  if (raw === 'universal-2' || raw === 'universal-3-pro') return raw;
+  return DEFAULT_ASSEMBLYAI_MODEL;
+}

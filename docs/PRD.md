@@ -61,7 +61,7 @@ A browser-based tool that:
 | Language persistence across sessions | P1 | 1 |
 | Audio playback after recording | P1 | 3 |
 | Audio export (download recording as file) | P1 | 4 |
-| Audio file import for Whisper transcription | P2 | 4 |
+| Audio file import for AssemblyAI batch transcription | P2 | 4 |
 | Documentation template selection (Meeting Notes, Tech Spec, ADR, Bug Report) | P1 | 4 |
 | Session history browser (list, preview, re-export) | P1 | 4 |
 | AI inline editing (improve selected text or full doc via prompt) | P1 | 4 |
@@ -94,12 +94,12 @@ A browser-based tool that:
 ### FR-02: Voice Recording
 
 - **FR-02.1** — The app MUST request microphone permission before recording
-- **FR-02.2** — Recording MUST use the Web Speech API for transcription with the selected speaking language
+- **FR-02.2** — The user MUST configure speech capture in Settings: **Auto**, **Web Speech API** (live), or **AssemblyAI after recording** (batch on stop); Auto prefers Web Speech when available, otherwise AssemblyAI batch if an API key is set
 - **FR-02.3** — A waveform visualization MUST show real-time audio activity
 - **FR-02.4** — The user MUST be able to pause and resume recording
 - **FR-02.5** — The user MUST be able to stop and finalize recording
-- **FR-02.6** — Transcription MUST update in real-time as speech is detected
-- **FR-02.7** — Recording sessions of 40+ minutes MUST be supported without accuracy degradation or memory issues; when using Whisper WASM, audio MUST be chunked into ≤30 s segments and transcribed serially
+- **FR-02.6** — With Web Speech, transcription MUST update in real time as speech is detected; with AssemblyAI batch, transcription appears after Stop (processing state)
+- **FR-02.7** — Long sessions SHOULD remain usable within browser memory and IndexedDB quota limits; very large audio blobs MAY be omitted from IndexedDB persistence with a clear UX tradeoff
 - **FR-02.8** — A live elapsed-time counter (MM:SS) MUST be displayed during recording
 
 ### FR-03: AI Processing
@@ -122,7 +122,7 @@ A browser-based tool that:
 
 - **FR-07.1** — After recording stops, the app MUST offer in-app audio playback via an `<audio>` element
 - **FR-07.2** — The user MUST be able to download the recording as a file (`.webm` on Chrome/Firefox, `.mp4` on Safari)
-- **FR-07.3** — When Whisper is the active speech provider, the user MAY upload an existing audio file for transcription
+- **FR-07.3** — The user MAY upload an existing audio file for AssemblyAI batch transcription (same backend as optional mic batch mode)
 - **FR-07.4** — Uploaded audio files MUST be capped at 50 MB with a clear validation error if exceeded
 - **FR-07.5** — Uploaded audio files MUST NOT be stored persistently — processed in-memory only
 
@@ -208,14 +208,14 @@ A browser-based tool that:
 
 2. Recording in progress
    ├── Waveform visualization (animated)
-   ├── Live transcription panel (Italian text appears)
+   ├── Transcription panel (live text for Web Speech, or “after stop” for AssemblyAI batch)
    └── [Stop Recording]
        OR
-   ├── [Upload Audio File] (Whisper provider only) → file picker → transcription
+   ├── [Upload Audio File] (AssemblyAI batch) → file picker → transcription
 
 3. Post-Recording
    ├── Audio playback bar (play/pause the just-recorded audio)
-   ├── [Download Recording] → saves .webm/.mp4 file
+   ├── [Download audio] → saves blob (e.g. `.webm`)
    └── [Generate Documentation]
 
 4. AI Processing

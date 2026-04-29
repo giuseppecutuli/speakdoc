@@ -1,25 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-var mockDraftRepo: any;
+const mockDraftRepo = vi.hoisted(() => ({
+  save: vi.fn().mockResolvedValue(undefined),
+  getLatest: vi.fn().mockResolvedValue(undefined),
+  getById: vi.fn().mockResolvedValue(undefined),
+  update: vi.fn().mockResolvedValue(undefined),
+  clear: vi.fn().mockResolvedValue(undefined),
+  beginNewDraft: vi.fn(),
+  listRecent: vi.fn().mockResolvedValue([]),
+  delete: vi.fn().mockResolvedValue(undefined),
+}));
 
-vi.mock('@/utils/repositories', () => {
-  mockDraftRepo = {
-    save: vi.fn().mockResolvedValue(undefined),
-    getLatest: vi.fn().mockResolvedValue(undefined),
-    clear: vi.fn().mockResolvedValue(undefined),
-  };
-
-  return {
-    sessionRepository: {},
-    feedbackRepository: {},
-    draftRepository: mockDraftRepo,
-  };
-});
+vi.mock('@/utils/repositories', () => ({
+  sessionRepository: {},
+  feedbackRepository: {},
+  draftRepository: mockDraftRepo,
+}));
 
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
+import * as audioChunkStorage from '@/utils/audio-chunk-storage';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -30,6 +32,9 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  if (vi.isMockFunction(audioChunkStorage.packAudioForStorage)) {
+    vi.mocked(audioChunkStorage.packAudioForStorage).mockRestore();
+  }
 });
 
 describe('useDraftPersistence', () => {
@@ -79,19 +84,34 @@ describe('useDraftPersistence', () => {
     );
   });
 
-  it('excludes audio blob larger than 25 MB', async () => {
-    renderHook(() => useDraftPersistence());
-
-    const oversizedBlob = new Blob([new Uint8Array(26 * 1024 * 1024)]);
-    act(() => {
-      useRecordingStore.getState().setTranscription('text');
-      useRecordingStore.getState().setAudioBlob(oversizedBlob);
+  it('stores oversized audio as chunks instead of a single blob', async () => {
+    const packSpy = vi.spyOn(audioChunkStorage, 'packAudioForStorage').mockReturnValue({
+      audioBlob: undefined,
+      audioChunks: [new Blob([new Uint8Array(10)]), new Blob([new Uint8Array(10)])],
+      audioMimeType: 'audio/webm',
     });
-    await act(async () => { vi.advanceTimersByTime(1100); });
 
-    expect(mockDraftRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ audioBlob: undefined }),
-    );
+    try {
+      renderHook(() => useDraftPersistence());
+
+      act(() => {
+        useRecordingStore.getState().setTranscription('text');
+        useRecordingStore.getState().setAudioBlob(new Blob(['mic-audio']));
+      });
+      await act(async () => { vi.advanceTimersByTime(1100); });
+
+      expect(mockDraftRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audioChunks: expect.arrayContaining([expect.any(Blob)]),
+          audioMimeType: 'audio/webm',
+        }),
+      );
+      const [[saved]] = mockDraftRepo.save.mock.calls;
+      expect(saved.audioBlob).toBeUndefined();
+      expect(saved.audioChunks?.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      packSpy.mockRestore();
+    }
   });
 
   it('includes audio blob within 25 MB', async () => {

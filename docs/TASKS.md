@@ -696,7 +696,7 @@ _Auto-save the current working state (transcription + generated doc + audio) to 
   - Displays: "You have an unsaved session from {relative time}. Restore it?"
   - Two actions: **Restore** and **Discard**
   - Restore: calls `onRestore(draft)` prop — parent populates all stores + sets `audioBlob`
-  - Discard: calls `draftRepository.clear()` and hides banner
+  - Discard: calls `draftRepository.delete(id)` for that draft row and hides banner
 - [ ] Unit tests: render conditions, restore callback, discard clears draft — 4 tests
 
 **Agent:** `frontend-dev` | **Complexity:** LOW | **Risk:** LOW

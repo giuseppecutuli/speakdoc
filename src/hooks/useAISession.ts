@@ -3,8 +3,12 @@ import { useLanguageStore } from './useLanguageStore';
 import { useDocumentationStore } from './useDocumentationStore';
 import { useTemplateStore } from './useTemplateStore';
 import { generateDocumentation } from '@/features/ai-integration/ai-manager.service';
-import { sessionRepository } from '@/utils/repositories';
-import { AINotConfiguredError } from '@/types/ai';
+import { sessionRepository, draftRepository } from '@/utils/repositories';
+import { STORAGE_KEYS } from '@/constants/config';
+import { AINotConfiguredError, type DocumentationAiBackend } from '@/types/ai';
+import { useRecordingStore } from '@/hooks/useRecordingStore';
+import { buildDefaultSessionName } from '@/utils/session-naming';
+import { packAudioForStorage } from '@/utils/audio-chunk-storage';
 
 /**
  * Orchestrates an AI documentation session:
@@ -30,33 +34,47 @@ export const useAISession = () => {
       reset();
       setGenerating(true);
 
-      let backend: 'gemini-nano' | 'external-api' = 'external-api';
+      let backend: DocumentationAiBackend = 'external-api';
 
       try {
-        for await (const { chunk, backend: b } of generateDocumentation(
+        for await (const { chunk, backend: streamBackend } of generateDocumentation(
           transcription,
           speakingLanguage,
           outputLanguage,
           selectedTemplateId,
         )) {
           if (abortedRef.current) break;
-          backend = b as 'gemini-nano' | 'external-api';
+          backend = streamBackend;
           appendRawResponse(chunk);
         }
 
         if (!abortedRef.current) {
           const fullDoc = useDocumentationStore.getState().rawAIResponse;
+          const createdAt = new Date();
+          const recordingBlob = useRecordingStore.getState().audioBlob;
+          const audioPack = packAudioForStorage(recordingBlob ?? null);
           const saved = await sessionRepository.save({
+            name: buildDefaultSessionName(createdAt),
             speakingLanguage,
             outputLanguage,
             transcription,
             generatedDoc: fullDoc,
             format: selectedFormat,
             aiBackend: backend,
-            createdAt: new Date(),
+            createdAt,
+            ...audioPack,
           });
           setSavedToHistory(true);
           setLastSavedSessionId(saved.id ?? null);
+
+          const activeRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_DRAFT_ID);
+          if (activeRaw) {
+            const draftId = Number(activeRaw);
+            if (!Number.isNaN(draftId)) {
+              await draftRepository.delete(draftId).catch(() => undefined);
+            }
+          }
+          draftRepository.beginNewDraft();
         }
       } catch (err) {
         if (err instanceof AINotConfiguredError) {

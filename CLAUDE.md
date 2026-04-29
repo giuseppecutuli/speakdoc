@@ -5,13 +5,15 @@ Browser webapp: record voice → AI generates structured docs → copy to Conflu
 ## Stack
 React 18 + TypeScript + Vite | Zustand | Dexie.js (IndexedDB) | Zod | Tailwind + shadcn/ui | Vitest + Playwright | assemblyai (cloud STT)
 
-## Speech-to-Text Strategy (Dual Provider)
-1. **Web Speech API** (default) — Real-time interim results, ~70–90% accuracy, no setup required
-2. **AssemblyAI** (optional, Phase 1c) — ~95–99% accuracy, cloud-based, requires API key
-   - **Batch**: `AssemblyAIService.transcribe()` used by `AudioFileImporter` (upload a file)
-   - **Real-time streaming**: `AssemblyAIProvider` used by `VoiceRecorder` (live mic via WebSocket)
-   - User enters AssemblyAI API key in Settings (stored in localStorage only)
-   - In-app guide explains how to obtain a free API key
+## Speech-to-Text Strategy (Settings-driven)
+User choice in **Settings → Speech Recognition** (`speech-preference.ts`, key `STORAGE_KEYS.SPEECH_PROVIDER`):
+- **Auto** — Web Speech API if the browser supports it; otherwise AssemblyAI batch (requires API key)
+- **Web Speech API** — real-time transcription on the mic via `WebSpeechProvider` + `SpeechProviderManager`
+- **AssemblyAI (after recording)** — mic records audio only; on **Stop**, `AssemblyAIService.transcribe()` runs (same batch API as file import)
+
+`AssemblyAIProvider` (streaming WebSocket) remains in the codebase for tests/providers but is **not** used by `VoiceRecorder`.
+
+Also: **AssemblyAI batch** on file upload via `AudioFileImporter`. API key in localStorage only; see `AssemblyAIGuide`.
 
 ## AI Strategy
 1. **Gemini Nano** (`window.ai.languageModel`) — Chrome 123+ with experimental flag
@@ -28,21 +30,23 @@ src/
   features/
     language-selection/       ✅ Phase 1
     voice-input/
-      ├── providers/          ✅ Phase 1a (WebSpeech), ✅ Phase 1c (AssemblyAI streaming)
-      ├── assemblyai.service.ts  ✅ Phase 1c (batch transcription for file import)
+      ├── speech-preference.ts   # load/save/migrate preference + resolve capture mode
+      ├── providers/          ✅ WebSpeech; AssemblyAI streaming (not used by VoiceRecorder)
+      ├── assemblyai.service.ts  ✅ batch transcription (mic stop + file import)
       └── (whisper files removed in Phase 1c)
     ai-integration/            ✅ Phase 2
     transcription/             ✅ Phase 1
     documentation-generation/  ✅ Phase 3
     learning/
       ├── repositories/        ✅ Phase 4 (ISessionRepository, IndexedDB impl)
-      │   ├── IDraftRepository.ts         🔲 Phase 6.2
-      │   └── IndexedDBDraftRepository.ts 🔲 Phase 6.2
+      │   ├── IDraftRepository.ts         ✅ multi-row drafts + active draft id
+      │   └── IndexedDBDraftRepository.ts ✅
     export/                    ✅ Phase 3, 4
   components/
-    └── DraftRestoreBanner.tsx  🔲 Phase 6.2
+    ├── DraftRestoreBanner.tsx  ✅
+    └── InProgressDrafts.tsx    ✅ list + restore/delete IndexedDB drafts
   hooks/
-    └── useDraftPersistence.ts  🔲 Phase 6.2
+    └── useDraftPersistence.ts  ✅ debounced save; ties to active draft row
   components/  hooks/  types/  constants/  utils/
 docs/PRD.md  ARCHITECTURE.md  TASKS.md
 .claude/agents/  (frontend-dev, ai-integration-dev, learning-engine-dev)
@@ -55,12 +59,12 @@ docs/PRD.md  ARCHITECTURE.md  TASKS.md
 | 1 | ✅ Complete | 49 |
 | 1a | ✅ Complete | +38 (87 total) |
 | 1b | ✅ Superseded | replaced by Phase 1c |
-| 1c | ✅ Complete | AssemblyAI streaming + batch; 247 total |
+| 1c | ✅ Complete | AssemblyAI batch; mic modes (Web vs record→transcribe) |
 | 2 | ✅ Complete | 98 |
 | 3 | ✅ Complete | 121 |
 | 4 | ✅ Complete | +25 (186 total) |
 | 5 | ✅ Complete | 229 |
-| 6 | 🔲 Not started | - |
+| 6 | 🟡 Partial | Drafts multi-row, in-progress list, session audio + default names |
 
 ## Agents
 | Agent | Use For |
@@ -74,7 +78,7 @@ docs/PRD.md  ARCHITECTURE.md  TASKS.md
 ## Rules
 - Language selection gates recording — never skip it
 - AI fallback is mandatory — never assume Gemini Nano available
-- Speech provider fallback is mandatory — gracefully degrade Web Speech → AssemblyAI → error
+- Speech capture: **Auto** resolves Web Speech vs AssemblyAI batch (`resolveVoiceCaptureMode`); explicit modes in Settings if the user wants to force one path
 - Immutable state — Zustand `set()` always creates new objects
 - TDD — tests before implementation, 80%+ coverage
 - No hardcoded secrets — API keys in localStorage via Settings UI

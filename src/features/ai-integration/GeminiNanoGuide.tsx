@@ -1,18 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
-
-export const FLAG_STEPS = [
-  {
-    label: 'Open Prompt API flag',
-    flag: 'chrome://flags/#prompt-api-for-gemini-nano',
-    action: 'Set to Enabled',
-  },
-  {
-    label: 'Open On-Device Model flag',
-    flag: 'chrome://flags/#optimization-guide-on-device-model',
-    action: 'Set to Enabled BypassPerfRequirement',
-  },
-];
+import { GEMINI_NANO_FLAG_STEPS } from './gemini-nano-guide.constants';
 
 interface Props {
   defaultOpen: boolean;
@@ -51,7 +39,7 @@ export const GeminiNanoGuide = ({ defaultOpen }: Props) => {
           </p>
 
           <ol className="space-y-2">
-            {FLAG_STEPS.map((step, i) => (
+            {GEMINI_NANO_FLAG_STEPS.map((step, i) => (
               <li key={step.flag} className="space-y-1">
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
                   {i + 1}. {step.label}

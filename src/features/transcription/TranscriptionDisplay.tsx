@@ -4,63 +4,89 @@ import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { SUPPORTED_LANGUAGES } from '@/constants/languages';
 import { cn } from '@/utils/cn';
+import { deferReactState } from '@/utils/defer-react-state';
 
 export const TranscriptionDisplay = () => {
-  const { transcription, interimTranscription, status, setTranscription } = useRecordingStore();
+  const { transcription, interimTranscription, status, capture_mode, setTranscription } = useRecordingStore();
   const { speakingLanguage } = useLanguageStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState('');
 
-  const hasContent = transcription || interimTranscription;
-  const langLabel = SUPPORTED_LANGUAGES[speakingLanguage].label;
-  const isDone = status === 'done';
+  const has_content = Boolean(transcription || interimTranscription);
+  const lang_label = SUPPORTED_LANGUAGES[speakingLanguage].label;
+  const is_done = status === 'done';
+  const is_recording = status === 'recording';
+  const is_paused = status === 'paused';
+  const is_processing = status === 'processing';
+  const can_edit =
+    Boolean(transcription.trim()) && !is_recording && !is_paused && !is_processing;
 
-  // Reset edit mode when transcription changes externally (new recording/import)
   useEffect(() => {
-    setIsEditing(false);
+    deferReactState(() => {
+      setIsEditing(false);
+    });
   }, [transcription]);
 
-  const handleEditStart = () => {
+  const handle_edit_start = () => {
     setDraft(transcription);
     setIsEditing(true);
   };
 
-  const handleSave = () => {
+  const handle_save = () => {
     setTranscription(draft);
     setIsEditing(false);
   };
 
-  const handleCancel = () => {
+  const handle_cancel = () => {
     setIsEditing(false);
   };
 
-  if (!hasContent && status === 'idle') return null;
+  if (status === 'idle' && !has_content) return null;
+
+  const empty_hint = (): string => {
+    if (is_processing) return 'Transcribing audio with AssemblyAI…';
+    if (is_done && !has_content) return 'No transcription for this recording.';
+    if (capture_mode === 'assemblyai_batch' && (is_recording || is_paused)) {
+      return 'Transcription will appear when you stop recording.';
+    }
+    if (is_recording || is_paused) return 'Speak to see transcription…';
+    return 'Speak to see transcription…';
+  };
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Transcription</h3>
+    <section
+      id="live-transcription"
+      aria-labelledby="transcription-heading"
+      className="rounded-xl border border-indigo-200/70 dark:border-indigo-800/50 bg-white dark:bg-slate-800 p-4 shadow-sm ring-1 ring-indigo-500/10 dark:ring-indigo-400/10"
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3
+          id="transcription-heading"
+          className="text-base font-semibold text-slate-900 dark:text-slate-100"
+        >
+          Transcription
+        </h3>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">
-            {langLabel}
+            {lang_label}
           </span>
-          {isDone && !isEditing && transcription && (
+          {can_edit && !isEditing && (
             <button
               type="button"
-              onClick={handleEditStart}
-              className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+              onClick={handle_edit_start}
+              className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               aria-label="Edit transcription"
             >
-              <Pencil className="h-3 w-3" />
-              Edit
+              <Pencil className="h-3 w-3" aria-hidden />
+              Edit transcription
             </button>
           )}
           {isEditing && (
             <>
               <button
                 type="button"
-                onClick={handleSave}
+                onClick={handle_save}
                 className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
                 aria-label="Save transcription"
               >
@@ -69,7 +95,7 @@ export const TranscriptionDisplay = () => {
               </button>
               <button
                 type="button"
-                onClick={handleCancel}
+                onClick={handle_cancel}
                 className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 aria-label="Cancel editing"
               >
@@ -91,14 +117,13 @@ export const TranscriptionDisplay = () => {
         />
       ) : (
         <div
-          className={cn(
-            'min-h-16 text-sm leading-relaxed',
-            !hasContent && 'text-slate-400 dark:text-slate-500 italic',
-          )}
+          className={cn('min-h-16 text-sm leading-relaxed', {
+            'text-slate-400 dark:text-slate-500 italic': !has_content,
+          })}
           aria-live="polite"
           aria-label="Live transcription"
         >
-          {hasContent ? (
+          {has_content ? (
             <>
               <span className="text-slate-800 dark:text-slate-200">{transcription}</span>
               {interimTranscription && (
@@ -106,10 +131,10 @@ export const TranscriptionDisplay = () => {
               )}
             </>
           ) : (
-            'Speak to see transcription…'
+            empty_hint()
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 };

@@ -6,8 +6,11 @@ import { useDocumentationStore } from '@/hooks/useDocumentationStore';
 import { applyFormat } from './doc-generator.service';
 import { cn } from '@/utils/cn';
 import type { OutputFormat } from '@/types/documentation';
+import { coerceOutputFormat } from '@/types/documentation';
+import type { LanguageCode } from '@/types/language';
 import { SelectionImprovementPopover } from './SelectionImprovementPopover';
 import { DocumentImprovementModal } from './DocumentImprovementModal';
+import { deferReactState } from '@/utils/defer-react-state';
 
 const FORMATS: { value: OutputFormat; label: string }[] = [
   { value: 'markdown', label: 'Markdown' },
@@ -17,7 +20,7 @@ const FORMATS: { value: OutputFormat; label: string }[] = [
 
 interface DocumentationEditorProps {
   onRegenerate?: () => void;
-  outputLanguage?: 'en' | 'it';
+  outputLanguage?: LanguageCode;
 }
 
 export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: DocumentationEditorProps) => {
@@ -48,25 +51,53 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    if (rawAIResponse) {
-      const formatted = applyFormat(rawAIResponse, selectedFormat);
+    if (!rawAIResponse) return;
+    const formatted = applyFormat(rawAIResponse, selectedFormat);
+    deferReactState(() => {
       setEditedContent(formatted);
       setFormattedOutput(formatted);
-    }
+    });
   }, [rawAIResponse, selectedFormat, setFormattedOutput]);
 
   // Apply undo/redo restore
   useEffect(() => {
-    if (pendingRestore !== null) {
-      setEditedContent(pendingRestore);
-      setFormattedOutput(pendingRestore);
+    if (pendingRestore === null) return;
+    const snapshot = pendingRestore;
+    deferReactState(() => {
+      setEditedContent(snapshot);
+      setFormattedOutput(snapshot);
       clearPendingRestore();
-    }
+    });
   }, [pendingRestore, setFormattedOutput, clearPendingRestore]);
 
   useEffect(() => {
     if (isEditingName) nameInputRef.current?.focus();
   }, [isEditingName]);
+
+  useEffect(() => {
+    if (!lastSavedSessionId) {
+      deferReactState(() => {
+        setSavedName('');
+        setSessionName('');
+      });
+      return;
+    }
+    let cancelled = false;
+    sessionRepository
+      .getById(lastSavedSessionId)
+      .then((row) => {
+        if (cancelled || !row) return;
+        const next = row.name?.trim() ?? '';
+        deferReactState(() => {
+          setSavedName(next);
+          setSessionName(next);
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [lastSavedSessionId]);
 
   const handleSaveName = async () => {
     if (!lastSavedSessionId) return;
@@ -82,7 +113,7 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
   };
 
   const handleFormatChange = (format: string) => {
-    const f = format as OutputFormat;
+    const f = coerceOutputFormat(format);
     setFormat(f);
     const formatted = applyFormat(rawAIResponse, f);
     setEditedContent(formatted);
@@ -202,7 +233,7 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
               className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
               aria-label="Regenerate documentation"
             >
-              <RefreshCw className={cn('h-3.5 w-3.5', isGenerating && 'animate-spin')} />
+              <RefreshCw className={cn('h-3.5 w-3.5', { 'animate-spin': isGenerating })} />
               Regenerate
             </button>
           )}

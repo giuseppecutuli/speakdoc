@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Wand2, Loader2 } from 'lucide-react';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
+import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { improveSelection } from './inline-improvement.service';
 
 interface Props {
@@ -21,6 +22,7 @@ const MAX_INSTRUCTION_LENGTH = 500;
 
 export const SelectionImprovementPopover = ({ textareaRef, content, onContentChange }: Props) => {
   const { pushHistory, setFormattedOutput, isGenerating } = useDocumentationStore();
+  const { outputLanguage } = useLanguageStore();
 
   const [anchor, setAnchor] = useState<SelectionAnchor | null>(null);
   const [instruction, setInstruction] = useState('');
@@ -95,15 +97,13 @@ export const SelectionImprovementPopover = ({ textareaRef, content, onContentCha
     if (!anchor || !instruction.trim() || isImproving || isGenerating) return;
 
     const selectedText = content.slice(anchor.start, anchor.end);
-    const storeState = useDocumentationStore.getState();
-    const lang = (storeState as { outputLanguage?: string }).outputLanguage ?? 'en';
 
     pushHistory(content);
 
     setIsImproving(true);
     try {
       let improved = '';
-      for await (const chunk of improveSelection(selectedText, instruction.trim(), lang as 'en' | 'it')) {
+      for await (const chunk of improveSelection(selectedText, instruction.trim(), outputLanguage)) {
         improved += chunk;
       }
       const newContent = content.slice(0, anchor.start) + improved + content.slice(anchor.end);

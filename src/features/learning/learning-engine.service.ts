@@ -1,5 +1,5 @@
 import type { DocumentationSession } from '@/types/session';
-import type { LanguagePair } from '@/types/language';
+import type { LanguageCode, LanguagePair } from '@/types/language';
 import type { OutputFormat } from '@/types/documentation';
 import { MIN_SESSIONS_FOR_SUGGESTIONS } from '@/constants/config';
 
@@ -41,7 +41,7 @@ export const analyzePatterns = (sessions: DocumentationSession[]): UsagePattern 
 
 export const generateSuggestions = (
   pattern: UsagePattern,
-  outputLanguage: 'en' | 'it',
+  outputLanguage: LanguageCode,
 ): string[] => {
   const suggestions: string[] = [];
 

@@ -4,7 +4,7 @@ import { AssemblyAIService } from './assemblyai.service';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { STORAGE_KEYS } from '@/constants/config';
-import { DEFAULT_ASSEMBLYAI_MODEL, type AssemblyAIModel } from '@/constants/assemblyai-config';
+import { loadAssemblyAiModelFromStorage } from '@/constants/assemblyai-config';
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -16,19 +16,12 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 const loadAssemblyAIKey = (): string =>
   localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_API_KEY) ?? '';
 
-const loadAssemblyAIModel = (): AssemblyAIModel =>
-  (localStorage.getItem(STORAGE_KEYS.ASSEMBLYAI_MODEL) as AssemblyAIModel) ?? DEFAULT_ASSEMBLYAI_MODEL;
-
-interface AudioFileImporterProps {
-  onTranscriptionComplete: (text: string) => void;
-}
-
 type Phase = 'idle' | 'transcribing';
 
-export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporterProps) => {
+export const AudioFileImporter = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const serviceRef = useRef(new AssemblyAIService());
-  const { appendTranscription, reset, setStatus } = useRecordingStore();
+  const { appendSegmentBlock, setStatus } = useRecordingStore();
   const { speakingLanguage } = useLanguageStore();
   const [phase, setPhase] = useState<Phase>('idle');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -44,19 +37,16 @@ export const AudioFileImporter = ({ onTranscriptionComplete }: AudioFileImporter
       return;
     }
 
-    reset();
     setLocalError(null);
 
     try {
       serviceRef.current.configure(key);
       setPhase('transcribing');
 
-      const model = loadAssemblyAIModel();
+      const model = loadAssemblyAiModelFromStorage();
       const text = await serviceRef.current.transcribe(file, speakingLanguage, model);
 
-      appendTranscription(text, true);
-      setStatus('done');
-      onTranscriptionComplete(text);
+      appendSegmentBlock(text);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Transcription failed';
       setLocalError(message);

@@ -2,22 +2,15 @@ import { useState } from 'react';
 import { ClipboardPaste, ArrowRight, X } from 'lucide-react';
 import { useRecordingStore } from '@/hooks/useRecordingStore';
 
-interface TextPasteInputProps {
-  onTranscriptionComplete: (text: string) => void;
-}
-
-export const TextPasteInput = ({ onTranscriptionComplete }: TextPasteInputProps) => {
+export const TextPasteInput = () => {
   const [text, setText] = useState('');
   const [expanded, setExpanded] = useState(false);
-  const { appendTranscription, reset, setStatus } = useRecordingStore();
+  const { appendSegmentBlock } = useRecordingStore();
 
   const handleSubmit = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    reset();
-    appendTranscription(trimmed, true);
-    setStatus('done');
-    onTranscriptionComplete(trimmed);
+    appendSegmentBlock(trimmed);
     setText('');
     setExpanded(false);
   };

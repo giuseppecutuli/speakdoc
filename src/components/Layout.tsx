@@ -12,7 +12,7 @@ export const Layout = ({ children, onSettingsClick }: LayoutProps) => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <header className="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3 md:max-w-[88rem] md:px-6 xl:px-8">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
               <FileText className="h-4 w-4 text-white" aria-hidden="true" />
@@ -41,7 +41,10 @@ export const Layout = ({ children, onSettingsClick }: LayoutProps) => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-8" id="main-content">
+      <main
+        className="mx-auto w-full max-w-3xl px-4 py-8 md:max-w-[88rem] md:px-6 xl:px-8"
+        id="main-content"
+      >
         {children}
       </main>
     </div>

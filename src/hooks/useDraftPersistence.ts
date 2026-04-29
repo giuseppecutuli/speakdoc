@@ -3,9 +3,9 @@ import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { draftRepository } from '@/utils/repositories';
+import { packAudioForStorage } from '@/utils/audio-chunk-storage';
 
 const DRAFT_DEBOUNCE_MS = 1000;
-const AUDIO_BLOB_MAX_SIZE = 25 * 1024 * 1024; // 25 MB
 
 export const useDraftPersistence = () => {
   const transcription = useRecordingStore((s) => s.transcription);
@@ -24,8 +24,7 @@ export const useDraftPersistence = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
     timerRef.current = setTimeout(() => {
-      const safeAudioBlob =
-        audioBlob && audioBlob.size <= AUDIO_BLOB_MAX_SIZE ? audioBlob : undefined;
+      const audioPack = packAudioForStorage(audioBlob ?? null);
 
       draftRepository
         .save({
@@ -34,7 +33,7 @@ export const useDraftPersistence = () => {
           format: selectedFormat,
           speakingLanguage,
           outputLanguage,
-          audioBlob: safeAudioBlob,
+          ...audioPack,
           savedAt: new Date(),
         })
         .catch(() => undefined); // non-critical, silent

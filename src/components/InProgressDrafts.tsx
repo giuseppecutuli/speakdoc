@@ -5,12 +5,15 @@ import type { SessionDraft } from '@/types/session';
 import { buildDefaultDraftTitle } from '@/utils/session-naming';
 import { formatDateTimeMedium } from '@/utils/datetime-display';
 import { draftHasRestoreableContent } from '@/features/learning/draft-restore';
+import { cn } from '@/utils/cn';
 
 interface InProgressDraftsProps {
   onRestore: (draft: SessionDraft) => void;
+  /** Right sidebar: lighter chrome to match SessionHistory compact */
+  compact?: boolean;
 }
 
-export const InProgressDrafts = ({ onRestore }: InProgressDraftsProps) => {
+export const InProgressDrafts = ({ onRestore, compact = false }: InProgressDraftsProps) => {
   const [drafts, setDrafts] = useState<SessionDraft[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -44,12 +47,39 @@ export const InProgressDrafts = ({ onRestore }: InProgressDraftsProps) => {
   if (!loaded || drafts.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
-        <FileEdit className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">In progress</h2>
+    <div
+      data-in-progress-drafts
+      className={cn(
+        'rounded-xl border bg-white dark:bg-slate-800 shadow-sm',
+        {
+          'border-slate-200/70 dark:border-slate-700/80 p-4 shadow-none dark:bg-slate-800/90': compact,
+          'border-slate-200 dark:border-slate-700 p-6': !compact,
+        },
+      )}
+    >
+      <div className={cn('flex items-center gap-2', { 'mb-3': compact, 'mb-4': !compact })}>
+        <FileEdit
+          className={cn('shrink-0 text-slate-500 dark:text-slate-400', {
+            'h-3.5 w-3.5': compact,
+            'h-4 w-4': !compact,
+          })}
+          aria-hidden
+        />
+        <h2
+          className={cn({
+            'text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400': compact,
+            'text-base font-semibold text-slate-900 dark:text-slate-100': !compact,
+          })}
+        >
+          In progress
+        </h2>
       </div>
-      <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+      <p
+        className={cn('text-slate-500 dark:text-slate-400', {
+          'mb-2 text-[11px] leading-snug': compact,
+          'mb-3 text-xs': !compact,
+        })}
+      >
         Saved automatically in your browser. Restore to continue, or delete when no longer needed.
       </p>
       <ul className="space-y-2" data-testid="in-progress-drafts-list">

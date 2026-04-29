@@ -9,6 +9,7 @@ import { getStoredAudioBlob } from '@/utils/audio-chunk-storage';
 import { formatDateTimeMedium } from '@/utils/datetime-display';
 import { audioBlobDownloadExtension } from '@/utils/audio-blob-extension';
 import { deferReactState } from '@/utils/defer-react-state';
+import { cn } from '@/utils/cn';
 
 const formatSize = (text: string): string => {
   const kb = Math.ceil(new Blob([text]).size / 1024);
@@ -175,11 +176,11 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
           </button>
           <button
             onClick={handleDeleteClick}
-            className={`rounded p-1 transition-colors ${
-              confirmDelete
-                ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30'
-                : 'text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-            }`}
+            className={cn('rounded p-1 transition-colors', {
+              'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30': confirmDelete,
+              'text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700':
+                !confirmDelete,
+            })}
             aria-label={confirmDelete ? 'Confirm delete' : 'Delete session'}
             title={confirmDelete ? 'Click again to confirm' : 'Delete session'}
           >
@@ -239,9 +240,11 @@ const SessionRow = ({ session, onDelete, onRestore, onRename }: SessionRowProps)
 
 interface SessionHistoryProps {
   onRestore?: (session: DocumentationSession) => void;
+  /** Narrow right column: lighter chrome so main transcription flow stays primary */
+  compact?: boolean;
 }
 
-export const SessionHistory = ({ onRestore }: SessionHistoryProps) => {
+export const SessionHistory = ({ onRestore, compact = false }: SessionHistoryProps) => {
   const [sessions, setSessions] = useState<DocumentationSession[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -276,10 +279,32 @@ export const SessionHistory = ({ onRestore }: SessionHistoryProps) => {
   if (!loaded || sessions.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
-        <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Session History</h2>
+    <div
+      data-session-history
+      className={cn(
+        'rounded-xl border bg-white dark:bg-slate-800 shadow-sm',
+        {
+          'border-slate-200/70 dark:border-slate-700/80 p-4 shadow-none dark:bg-slate-800/90': compact,
+          'border-slate-200 dark:border-slate-700 p-6': !compact,
+        },
+      )}
+    >
+      <div className={cn('flex items-center gap-2', { 'mb-3': compact, 'mb-4': !compact })}>
+        <Clock
+          className={cn('shrink-0 text-slate-500 dark:text-slate-400', {
+            'h-3.5 w-3.5': compact,
+            'h-4 w-4': !compact,
+          })}
+          aria-hidden
+        />
+        <h2
+          className={cn({
+            'text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400': compact,
+            'text-base font-semibold text-slate-900 dark:text-slate-100': !compact,
+          })}
+        >
+          Session History
+        </h2>
       </div>
       <ul className="space-y-2" data-testid="session-history-list">
         {sessions.map((session) => (

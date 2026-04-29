@@ -208,7 +208,7 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
               className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
               aria-label="Regenerate documentation"
             >
-              <RefreshCw className={cn('h-3.5 w-3.5', isGenerating && 'animate-spin')} />
+              <RefreshCw className={cn('h-3.5 w-3.5', { 'animate-spin': isGenerating })} />
               Regenerate
             </button>
           )}

@@ -257,10 +257,9 @@ export const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps) =
   return (
     <div className="flex flex-col gap-4">
       <div
-        className={cn(
-          'relative h-16 w-full overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-700',
-          isRecording && 'bg-indigo-50 dark:bg-indigo-900/30',
-        )}
+        className={cn('relative h-16 w-full overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-700', {
+          'bg-indigo-50 dark:bg-indigo-900/30': isRecording,
+        })}
       >
         <canvas ref={canvasRef} className="h-full w-full" />
         {!isRecording && waveformOverlay && (

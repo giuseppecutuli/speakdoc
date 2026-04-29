@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp, Keyboard, Languages, Mic } from 'lucide-react';
+import { cn } from '@/utils/cn';
 
 const STEPS = [
   'Select your speaking and output languages',
@@ -19,30 +20,81 @@ const ACCURACY: { language: string; webSpeech: string; assemblyAI: string }[] = 
   { language: 'Italian', webSpeech: '~80%', assemblyAI: '~95%' },
 ];
 
-export const HelpPanel = () => {
+interface HelpPanelProps {
+  /** Right sidebar: tighter padding to match other rail panels */
+  compact?: boolean;
+}
+
+export const HelpPanel = ({ compact = false }: HelpPanelProps) => {
   const [open, setOpen] = useState(false);
 
+  const chevron_icon_class = cn('shrink-0 text-slate-400', {
+    'h-3.5 w-3.5': compact,
+    'h-4 w-4': !compact,
+  });
+
+  const table_cell_pad = cn({
+    'px-1 py-1': compact,
+    'px-3 py-1.5': !compact,
+  });
+
+  const table_cell_pad_first_col = cn({
+    'px-1.5 py-1': compact,
+    'px-3 py-1.5': !compact,
+  });
+
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+    <div
+      data-quick-guide
+      className={cn(
+        'rounded-xl border bg-white dark:bg-slate-800 shadow-sm',
+        {
+          'border-slate-200/70 dark:border-slate-700/80 shadow-none dark:bg-slate-800/90': compact,
+          'border-slate-200 dark:border-slate-700': !compact,
+        },
+      )}
+    >
       <button
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        type="button"
+        className={cn('flex w-full items-center justify-between text-left', {
+          'px-3 py-2.5': compact,
+          'px-4 py-3': !compact,
+        })}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label="Toggle quick guide"
       >
         <div className="flex items-center gap-2">
-          <HelpCircle className="h-4 w-4 text-indigo-500" />
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Quick Guide</span>
+          <HelpCircle
+            className={cn('shrink-0 text-indigo-500', {
+              'h-3.5 w-3.5': compact,
+              'h-4 w-4': !compact,
+            })}
+            aria-hidden
+          />
+          <span
+            className={cn({
+              'text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400': compact,
+              'text-sm font-semibold text-slate-700 dark:text-slate-200': !compact,
+            })}
+          >
+            Quick Guide
+          </span>
         </div>
         {open ? (
-          <ChevronUp className="h-4 w-4 text-slate-400" />
+          <ChevronUp className={chevron_icon_class} aria-hidden />
         ) : (
-          <ChevronDown className="h-4 w-4 text-slate-400" />
+          <ChevronDown className={chevron_icon_class} aria-hidden />
         )}
       </button>
 
       {open && (
-        <div className="border-t border-slate-200 dark:border-slate-700 px-4 pb-4 pt-3 space-y-5">
+        <div
+          className={cn('border-t border-slate-200 dark:border-slate-700 space-y-5', {
+            'px-3 pb-3 pt-2 space-y-4': compact,
+            'px-4 pb-4 pt-3': !compact,
+          })}
+        >
           {/* How to use */}
           <div>
             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -85,13 +137,24 @@ export const HelpPanel = () => {
               <Languages className="h-3.5 w-3.5" />
               Speech Accuracy by Provider
             </h3>
-            <div className="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 text-xs">
+            <div
+              className={cn(
+                'overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 text-xs',
+                { 'text-[11px]': compact },
+              )}
+            >
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
-                    <th className="px-3 py-1.5 text-left font-medium text-slate-500 dark:text-slate-400">Language</th>
-                    <th className="px-3 py-1.5 text-center font-medium text-slate-500 dark:text-slate-400">Web Speech</th>
-                    <th className="px-3 py-1.5 text-center font-medium text-slate-500 dark:text-slate-400">AssemblyAI</th>
+                    <th className={cn('text-left font-medium text-slate-500 dark:text-slate-400', table_cell_pad_first_col)}>
+                      Language
+                    </th>
+                    <th className={cn('text-center font-medium text-slate-500 dark:text-slate-400', table_cell_pad)}>
+                      Web Speech
+                    </th>
+                    <th className={cn('text-center font-medium text-slate-500 dark:text-slate-400', table_cell_pad)}>
+                      AssemblyAI
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -100,9 +163,13 @@ export const HelpPanel = () => {
                       key={language}
                       className="border-b last:border-0 border-slate-100 dark:border-slate-700"
                     >
-                      <td className="px-3 py-1.5 text-slate-700 dark:text-slate-200">{language}</td>
-                      <td className="px-3 py-1.5 text-center text-slate-500 dark:text-slate-400">{webSpeech}</td>
-                      <td className="px-3 py-1.5 text-center font-semibold text-green-600 dark:text-green-400">{assemblyAI}</td>
+                      <td className={cn('text-slate-700 dark:text-slate-200', table_cell_pad_first_col)}>{language}</td>
+                      <td className={cn('text-center text-slate-500 dark:text-slate-400', table_cell_pad)}>
+                        {webSpeech}
+                      </td>
+                      <td className={cn('text-center font-semibold text-green-600 dark:text-green-400', table_cell_pad)}>
+                        {assemblyAI}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

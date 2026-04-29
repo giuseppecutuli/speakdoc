@@ -8,6 +8,9 @@ vi.mock('@/utils/repositories', () => {
     save: vi.fn().mockResolvedValue(undefined),
     getLatest: vi.fn().mockResolvedValue(undefined),
     clear: vi.fn().mockResolvedValue(undefined),
+    begin_new_draft: vi.fn(),
+    list_recent: vi.fn().mockResolvedValue([]),
+    delete: vi.fn().mockResolvedValue(undefined),
   };
 
   return {

@@ -3,9 +3,9 @@ import { useRecordingStore } from '@/hooks/useRecordingStore';
 import { useDocumentationStore } from '@/hooks/useDocumentationStore';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
 import { draftRepository } from '@/utils/repositories';
+import { AUDIO_BLOB_MAX_BYTES } from '@/constants/draft-limits';
 
 const DRAFT_DEBOUNCE_MS = 1000;
-const AUDIO_BLOB_MAX_SIZE = 25 * 1024 * 1024; // 25 MB
 
 export const useDraftPersistence = () => {
   const transcription = useRecordingStore((s) => s.transcription);
@@ -25,7 +25,7 @@ export const useDraftPersistence = () => {
 
     timerRef.current = setTimeout(() => {
       const safeAudioBlob =
-        audioBlob && audioBlob.size <= AUDIO_BLOB_MAX_SIZE ? audioBlob : undefined;
+        audioBlob && audioBlob.size <= AUDIO_BLOB_MAX_BYTES ? audioBlob : undefined;
 
       draftRepository
         .save({

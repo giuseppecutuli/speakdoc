@@ -3,8 +3,12 @@ import { useLanguageStore } from './useLanguageStore';
 import { useDocumentationStore } from './useDocumentationStore';
 import { useTemplateStore } from './useTemplateStore';
 import { generateDocumentation } from '@/features/ai-integration/ai-manager.service';
-import { sessionRepository } from '@/utils/repositories';
+import { sessionRepository, draftRepository } from '@/utils/repositories';
+import { STORAGE_KEYS } from '@/constants/config';
 import { AINotConfiguredError } from '@/types/ai';
+import { useRecordingStore } from '@/hooks/useRecordingStore';
+import { AUDIO_BLOB_MAX_BYTES } from '@/constants/draft-limits';
+import { build_default_session_name } from '@/utils/session-naming';
 
 /**
  * Orchestrates an AI documentation session:
@@ -46,17 +50,32 @@ export const useAISession = () => {
 
         if (!abortedRef.current) {
           const fullDoc = useDocumentationStore.getState().rawAIResponse;
+          const created_at = new Date();
+          const recording_blob = useRecordingStore.getState().audioBlob;
+          const safe_audio =
+            recording_blob && recording_blob.size <= AUDIO_BLOB_MAX_BYTES ? recording_blob : undefined;
           const saved = await sessionRepository.save({
+            name: build_default_session_name(created_at),
             speakingLanguage,
             outputLanguage,
             transcription,
             generatedDoc: fullDoc,
             format: selectedFormat,
             aiBackend: backend,
-            createdAt: new Date(),
+            createdAt: created_at,
+            ...(safe_audio ? { audioBlob: safe_audio } : {}),
           });
           setSavedToHistory(true);
           setLastSavedSessionId(saved.id ?? null);
+
+          const active_raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_DRAFT_ID);
+          if (active_raw) {
+            const draft_id = Number(active_raw);
+            if (!Number.isNaN(draft_id)) {
+              await draftRepository.delete(draft_id).catch(() => undefined);
+            }
+          }
+          draftRepository.begin_new_draft();
         }
       } catch (err) {
         if (err instanceof AINotConfiguredError) {

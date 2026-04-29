@@ -10,6 +10,7 @@ import { DocumentationEditor } from '@/features/documentation-generation/Documen
 import { TemplateSelector } from '@/features/documentation-generation/TemplateSelector';
 import { LearningPanel } from '@/features/learning/LearningPanel';
 import { SessionHistory } from '@/features/learning/SessionHistory';
+import { InProgressDrafts } from '@/components/InProgressDrafts';
 import { AudioFileImporter } from '@/features/voice-input/AudioFileImporter';
 import { TextPasteInput } from '@/features/voice-input/TextPasteInput';
 import { useLanguageStore } from '@/hooks/useLanguageStore';
@@ -40,7 +41,7 @@ export const App = () => {
   const { loadFromStorage, unlockSession, speakingLanguage, outputLanguage, setLanguages } = useLanguageStore();
   const { error: docError, reset: resetDoc, formattedOutput, selectedFormat, setFormattedOutput, setFormat } = useDocumentationStore();
   const { loadFromStorage: loadTemplate } = useTemplateStore();
-  const { setTranscription } = useRecordingStore();
+  const { setTranscription, setAudioBlob } = useRecordingStore();
   const { generate } = useAISession();
 
   useDraftPersistence();
@@ -77,24 +78,45 @@ export const App = () => {
   const handleRestoreSession = useCallback((session: DocumentationSession) => {
     setLanguages(session.speakingLanguage as LanguageCode, session.outputLanguage as LanguageCode);
     setTranscription(session.transcription);
+    setAudioBlob(session.audioBlob ?? null);
     setFormat(session.format as OutputFormat);
     setFormattedOutput(session.generatedDoc);
     setShowLanguageModal(false);
-  }, [setLanguages, setTranscription, setFormat, setFormattedOutput]);
+  }, [setLanguages, setTranscription, setAudioBlob, setFormat, setFormattedOutput]);
+
+  const apply_draft = useCallback(
+    (draft: SessionDraft) => {
+      setLanguages(draft.speakingLanguage as LanguageCode, draft.outputLanguage as LanguageCode);
+      setTranscription(draft.transcription);
+      setAudioBlob(draft.audioBlob ?? null);
+      setFormat(draft.format as OutputFormat);
+      setFormattedOutput(draft.generatedDoc);
+      setShowLanguageModal(false);
+    },
+    [setLanguages, setTranscription, setAudioBlob, setFormat, setFormattedOutput],
+  );
 
   const handleRestoreDraft = useCallback(() => {
     if (!pendingDraft) return;
-    setLanguages(pendingDraft.speakingLanguage as LanguageCode, pendingDraft.outputLanguage as LanguageCode);
-    setTranscription(pendingDraft.transcription);
-    setFormat(pendingDraft.format as OutputFormat);
-    setFormattedOutput(pendingDraft.generatedDoc);
-    setShowLanguageModal(false);
+    apply_draft(pendingDraft);
     setPendingDraft(null);
-  }, [pendingDraft, setLanguages, setTranscription, setFormat, setFormattedOutput]);
+  }, [pendingDraft, apply_draft]);
+
+  const handle_restore_draft_from_list = useCallback(
+    (draft: SessionDraft) => {
+      apply_draft(draft);
+      setPendingDraft(null);
+    },
+    [apply_draft],
+  );
 
   const handleDismissDraft = useCallback(() => {
-    setPendingDraft(null);
-    draftRepository.clear().catch(() => undefined);
+    setPendingDraft((current) => {
+      if (current?.id != null) {
+        draftRepository.delete(current.id).catch(() => undefined);
+      }
+      return null;
+    });
   }, []);
 
   useKeyboardShortcuts({
@@ -148,6 +170,8 @@ export const App = () => {
         </div>
 
         <LearningPanel />
+
+        <InProgressDrafts onRestore={handle_restore_draft_from_list} />
 
         <TranscriptionDisplay />
 

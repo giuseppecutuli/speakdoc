@@ -55,12 +55,13 @@ describe('reset', () => {
     useRecordingStore.getState().setTranscription('something');
     useRecordingStore.getState().setError('oops');
     useRecordingStore.getState().reset();
-    const { status, transcription, interimTranscription, audioBlob, error } =
+    const { status, transcription, interimTranscription, audioBlob, error, capture_mode } =
       useRecordingStore.getState();
     expect(status).toBe('idle');
     expect(transcription).toBe('');
     expect(interimTranscription).toBe('');
     expect(audioBlob).toBeNull();
     expect(error).toBeNull();
+    expect(capture_mode).toBeNull();
   });
 });

@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { HelpCircle, ChevronDown, ChevronUp, Keyboard, Languages, Mic } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { HelpCircle, Keyboard, Languages, Mic, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 const STEPS = [
   'Select your speaking and output languages',
-  'Press Record (or Space) to start speaking',
-  'Stop recording, then Generate Documentation',
+  'Press Record (or Space) to start speaking; you can stop and Record again to append more text',
+  'In the right sidebar: Save opens a name dialog; Edit draft name renames the current draft; New session and Clear workspace manage the page',
+  'In the left column, Active settings summarizes languages, template, output format, voice capture, and documentation AI — use Open full settings to change them',
+  'Click Generate documentation when ready — AI runs only after that',
+  'Rename drafts under In progress (pencil); name a finished session via Name session in the doc header or Rename in Session History',
   'Edit the result and copy to Confluence or Notion',
 ];
 
@@ -20,164 +24,140 @@ const ACCURACY: { language: string; webSpeech: string; assemblyAI: string }[] = 
   { language: 'Italian', webSpeech: '~80%', assemblyAI: '~95%' },
 ];
 
+function QuickGuideModalContent() {
+  return (
+    <div className="space-y-6 pr-1">
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <Mic className="h-4 w-4 shrink-0" aria-hidden />
+          How to use
+        </h3>
+        <ol className="list-none space-y-2">
+          {STEPS.map((step, i) => (
+            <li key={i} className="flex gap-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                {i + 1}
+              </span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <Keyboard className="h-4 w-4 shrink-0" aria-hidden />
+          Keyboard shortcuts
+        </h3>
+        <div className="space-y-2">
+          {SHORTCUTS.map(({ key, description }) => (
+            <div key={key} className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-slate-700 dark:text-slate-200">{description}</span>
+              <kbd className="shrink-0 rounded border border-slate-200 bg-slate-100 px-2 py-1 font-mono text-xs text-slate-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200">
+                {key}
+              </kbd>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <Languages className="h-4 w-4 shrink-0" aria-hidden />
+          Speech accuracy by provider
+        </h3>
+        <div className="overflow-hidden rounded-lg border border-slate-200 text-sm dark:border-slate-600">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50">
+                <th className="px-4 py-2.5 text-left font-medium text-slate-600 dark:text-slate-300">Language</th>
+                <th className="px-4 py-2.5 text-center font-medium text-slate-600 dark:text-slate-300">Web Speech</th>
+                <th className="px-4 py-2.5 text-center font-medium text-slate-600 dark:text-slate-300">AssemblyAI</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ACCURACY.map(({ language, webSpeech, assemblyAI }) => (
+                <tr key={language} className="border-b border-slate-100 last:border-0 dark:border-slate-700">
+                  <td className="px-4 py-2.5 text-slate-800 dark:text-slate-100">{language}</td>
+                  <td className="px-4 py-2.5 text-center text-slate-600 dark:text-slate-400">{webSpeech}</td>
+                  <td className="px-4 py-2.5 text-center font-semibold text-green-600 dark:text-green-400">{assemblyAI}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface HelpPanelProps {
-  /** Right sidebar: tighter padding to match other rail panels */
+  /** Narrow rail: compact trigger card to match Active settings. */
   compact?: boolean;
 }
 
 export const HelpPanel = ({ compact = false }: HelpPanelProps) => {
-  const [open, setOpen] = useState(false);
-
-  const chevron_icon_class = cn('shrink-0 text-slate-400', {
-    'h-3.5 w-3.5': compact,
-    'h-4 w-4': !compact,
-  });
-
-  const table_cell_pad = cn({
-    'px-1 py-1': compact,
-    'px-3 py-1.5': !compact,
-  });
-
-  const table_cell_pad_first_col = cn({
-    'px-1.5 py-1': compact,
-    'px-3 py-1.5': !compact,
-  });
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
-    <div
-      data-quick-guide
-      className={cn(
-        'rounded-xl border bg-white dark:bg-slate-800 shadow-sm',
-        {
+    <>
+      <div
+        data-quick-guide
+        className={cn('rounded-xl border bg-white dark:bg-slate-800 shadow-sm', {
           'border-slate-200/70 dark:border-slate-700/80 shadow-none dark:bg-slate-800/90': compact,
           'border-slate-200 dark:border-slate-700': !compact,
-        },
-      )}
-    >
-      <button
-        type="button"
-        className={cn('flex w-full items-center justify-between text-left', {
-          'px-3 py-2.5': compact,
-          'px-4 py-3': !compact,
         })}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-label="Toggle quick guide"
       >
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className={cn(
+            'flex w-full items-center justify-center gap-2 rounded-lg font-semibold text-indigo-700 transition-colors hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40',
+            compact ? 'px-3 py-2.5 text-xs' : 'px-4 py-3 text-sm',
+          )}
+          aria-haspopup="dialog"
+          aria-expanded={modalOpen}
+          aria-controls="quick-guide-dialog"
+        >
           <HelpCircle
-            className={cn('shrink-0 text-indigo-500', {
-              'h-3.5 w-3.5': compact,
-              'h-4 w-4': !compact,
-            })}
+            className={cn('shrink-0 text-indigo-500', compact ? 'h-4 w-4' : 'h-5 w-5')}
             aria-hidden
           />
-          <span
-            className={cn({
-              'text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400': compact,
-              'text-sm font-semibold text-slate-700 dark:text-slate-200': !compact,
-            })}
+          Quick guide
+        </button>
+      </div>
+
+      <Dialog.Root open={modalOpen} onOpenChange={setModalOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" />
+          <Dialog.Content
+            id="quick-guide-dialog"
+            className="fixed left-1/2 top-1/2 z-[70] flex max-h-[min(90vh,720px)] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl border border-slate-200 bg-white shadow-xl focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+            aria-describedby="quick-guide-description"
           >
-            Quick Guide
-          </span>
-        </div>
-        {open ? (
-          <ChevronUp className={chevron_icon_class} aria-hidden />
-        ) : (
-          <ChevronDown className={chevron_icon_class} aria-hidden />
-        )}
-      </button>
-
-      {open && (
-        <div
-          className={cn('border-t border-slate-200 dark:border-slate-700 space-y-5', {
-            'px-3 pb-3 pt-2 space-y-4': compact,
-            'px-4 pb-4 pt-3': !compact,
-          })}
-        >
-          {/* How to use */}
-          <div>
-            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              <Mic className="h-3.5 w-3.5" />
-              How to use
-            </h3>
-            <ol className="space-y-1.5 list-none">
-              {STEPS.map((step, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
-                  <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-[10px] font-semibold mt-0.5">
-                    {i + 1}
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          {/* Keyboard shortcuts */}
-          <div>
-            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              <Keyboard className="h-3.5 w-3.5" />
-              Keyboard Shortcuts
-            </h3>
-            <div className="space-y-1.5">
-              {SHORTCUTS.map(({ key, description }) => (
-                <div key={key} className="flex items-center justify-between text-xs">
-                  <span className="text-slate-600 dark:text-slate-300">{description}</span>
-                  <kbd className="rounded border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[11px] font-mono text-slate-700 dark:text-slate-300">
-                    {key}
-                  </kbd>
-                </div>
-              ))}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+              <Dialog.Title className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Quick guide
+              </Dialog.Title>
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                  aria-label="Close quick guide"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </Dialog.Close>
             </div>
-          </div>
-
-          {/* Language accuracy */}
-          <div>
-            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              <Languages className="h-3.5 w-3.5" />
-              Speech Accuracy by Provider
-            </h3>
-            <div
-              className={cn(
-                'overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 text-xs',
-                { 'text-[11px]': compact },
-              )}
-            >
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
-                    <th className={cn('text-left font-medium text-slate-500 dark:text-slate-400', table_cell_pad_first_col)}>
-                      Language
-                    </th>
-                    <th className={cn('text-center font-medium text-slate-500 dark:text-slate-400', table_cell_pad)}>
-                      Web Speech
-                    </th>
-                    <th className={cn('text-center font-medium text-slate-500 dark:text-slate-400', table_cell_pad)}>
-                      AssemblyAI
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ACCURACY.map(({ language, webSpeech, assemblyAI }) => (
-                    <tr
-                      key={language}
-                      className="border-b last:border-0 border-slate-100 dark:border-slate-700"
-                    >
-                      <td className={cn('text-slate-700 dark:text-slate-200', table_cell_pad_first_col)}>{language}</td>
-                      <td className={cn('text-center text-slate-500 dark:text-slate-400', table_cell_pad)}>
-                        {webSpeech}
-                      </td>
-                      <td className={cn('text-center font-semibold text-green-600 dark:text-green-400', table_cell_pad)}>
-                        {assemblyAI}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <Dialog.Description id="quick-guide-description" className="sr-only">
+              Steps to use Speak Doc, keyboard shortcuts, and speech accuracy by language and provider.
+            </Dialog.Description>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <QuickGuideModalContent />
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 };

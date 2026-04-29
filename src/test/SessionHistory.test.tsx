@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const mockSessionRepo = vi.hoisted(() => ({
   getRecent: vi.fn(),
+  getById: vi.fn().mockResolvedValue(undefined),
+  update: vi.fn().mockResolvedValue(undefined),
   delete: vi.fn(),
 }));
 

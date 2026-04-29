@@ -74,6 +74,31 @@ export const DocumentationEditor = ({ onRegenerate, outputLanguage = 'en' }: Doc
     if (isEditingName) nameInputRef.current?.focus();
   }, [isEditingName]);
 
+  useEffect(() => {
+    if (!lastSavedSessionId) {
+      deferReactState(() => {
+        setSavedName('');
+        setSessionName('');
+      });
+      return;
+    }
+    let cancelled = false;
+    sessionRepository
+      .getById(lastSavedSessionId)
+      .then((row) => {
+        if (cancelled || !row) return;
+        const next = row.name?.trim() ?? '';
+        deferReactState(() => {
+          setSavedName(next);
+          setSessionName(next);
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [lastSavedSessionId]);
+
   const handleSaveName = async () => {
     if (!lastSavedSessionId) return;
     const trimmed = sessionName.trim();

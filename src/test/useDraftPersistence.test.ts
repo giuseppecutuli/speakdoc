@@ -4,6 +4,8 @@ import { renderHook, act } from '@testing-library/react';
 const mockDraftRepo = vi.hoisted(() => ({
   save: vi.fn().mockResolvedValue(undefined),
   getLatest: vi.fn().mockResolvedValue(undefined),
+  getById: vi.fn().mockResolvedValue(undefined),
+  update: vi.fn().mockResolvedValue(undefined),
   clear: vi.fn().mockResolvedValue(undefined),
   beginNewDraft: vi.fn(),
   listRecent: vi.fn().mockResolvedValue([]),

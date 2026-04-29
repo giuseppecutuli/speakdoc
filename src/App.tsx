@@ -2,14 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { SettingsPage } from '@/components/SettingsPage';
 import { HelpPanel } from '@/components/HelpPanel';
+import { ActiveSettingsSummary } from '@/components/ActiveSettingsSummary';
 import { DraftRestoreBanner } from '@/components/DraftRestoreBanner';
 import { LanguageSelectionModal } from '@/features/language-selection/LanguageSelectionModal';
 import { VoiceRecorder } from '@/features/voice-input/VoiceRecorder';
 import { TranscriptionDisplay } from '@/features/transcription/TranscriptionDisplay';
 import { DocumentationEditor } from '@/features/documentation-generation/DocumentationEditor';
+import { GenerateDocumentationCta } from '@/features/documentation-generation/GenerateDocumentationCta';
 import { TemplateSelector } from '@/features/documentation-generation/TemplateSelector';
 import { LearningPanel } from '@/features/learning/LearningPanel';
 import { SessionHistory } from '@/features/learning/SessionHistory';
+import { SessionWorkspaceToolbar } from '@/features/learning/SessionWorkspaceToolbar';
 import { InProgressDrafts } from '@/components/InProgressDrafts';
 import { AudioFileImporter } from '@/features/voice-input/AudioFileImporter';
 import { TextPasteInput } from '@/features/voice-input/TextPasteInput';
@@ -41,6 +44,7 @@ export const App = () => {
     () => !localStorage.getItem(STORAGE_KEYS.SPEAKING_LANGUAGE),
   );
   const [pendingDraft, setPendingDraft] = useState<SessionDraft | null>(null);
+  const [draftListRevision, setDraftListRevision] = useState(0);
 
   const { loadFromStorage, unlockSession, speakingLanguage, outputLanguage, setLanguages } = useLanguageStore();
   const { error: docError, reset: resetDoc, formattedOutput, selectedFormat, setFormattedOutput, setFormat } = useDocumentationStore();
@@ -143,8 +147,8 @@ export const App = () => {
     <Layout onSettingsClick={() => setView('settings')}>
       <LanguageSelectionModal open={showLanguageModal} onConfirm={handleLanguageConfirm} />
 
-      <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-start md:gap-8">
-        <div className="min-w-0 space-y-6">
+      <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_minmax(0,20rem)] md:items-start md:gap-6 xl:gap-8">
+        <div className="order-1 min-w-0 space-y-6 md:order-none md:col-start-2 md:row-start-1">
           {pendingDraft && (
             <DraftRestoreBanner
               draft={pendingDraft}
@@ -171,16 +175,18 @@ export const App = () => {
                 </div>
               </div>
             </div>
-            <VoiceRecorder onTranscriptionComplete={generate} />
+            <VoiceRecorder />
             <div className="mt-4 border-t border-slate-100 dark:border-slate-700 pt-4 flex flex-col gap-4">
-              <AudioFileImporter onTranscriptionComplete={generate} />
+              <AudioFileImporter />
               <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
-                <TextPasteInput onTranscriptionComplete={generate} />
+                <TextPasteInput />
               </div>
             </div>
           </div>
 
           <TranscriptionDisplay />
+
+          <GenerateDocumentationCta onGenerate={generate} />
 
           <LearningPanel />
 
@@ -198,12 +204,27 @@ export const App = () => {
         </div>
 
         <aside
-          className="flex min-w-0 flex-col gap-6 md:sticky md:top-24 md:self-start md:max-h-[calc(100vh-7rem)] md:overflow-y-auto md:border-l md:border-slate-200 md:pl-8 dark:md:border-slate-700"
-          aria-label="Drafts, sessions, and quick guide"
+          className="order-2 flex min-w-0 flex-col gap-6 md:order-none md:col-start-1 md:row-start-1 md:sticky md:top-24 md:self-start md:max-h-[calc(100vh-7rem)] md:overflow-y-auto md:border-r md:border-slate-200 md:pr-6 dark:md:border-slate-700"
+          aria-label="Active settings and quick guide"
         >
-          <InProgressDrafts onRestore={handleRestoreDraftFromList} compact />
-          <SessionHistory onRestore={handleRestoreSession} compact />
+          <ActiveSettingsSummary compact onOpenSettings={() => setView('settings')} />
           <HelpPanel compact />
+        </aside>
+
+        <aside
+          className="order-3 flex min-w-0 flex-col gap-6 md:order-none md:col-start-3 md:row-start-1 md:sticky md:top-24 md:self-start md:max-h-[calc(100vh-7rem)] md:overflow-y-auto md:border-l md:border-slate-200 md:pl-6 dark:md:border-slate-700"
+          aria-label="In progress drafts, workspace actions, and session history"
+        >
+          <InProgressDrafts
+            onRestore={handleRestoreDraftFromList}
+            compact
+            listRevision={draftListRevision}
+          />
+          <SessionWorkspaceToolbar
+            compact
+            onDraftsMutated={() => setDraftListRevision((n) => n + 1)}
+          />
+          <SessionHistory onRestore={handleRestoreSession} compact />
         </aside>
       </div>
     </Layout>

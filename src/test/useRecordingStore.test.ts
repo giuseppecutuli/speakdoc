@@ -50,6 +50,31 @@ describe('appendTranscription', () => {
   });
 });
 
+describe('appendSegmentBlock', () => {
+  it('sets first block without leading separator', () => {
+    useRecordingStore.getState().appendSegmentBlock('  hello  ');
+    expect(useRecordingStore.getState().transcription).toBe('hello');
+    expect(useRecordingStore.getState().status).toBe('done');
+  });
+
+  it('appends further blocks with blank line separator', () => {
+    useRecordingStore.getState().setTranscription('first');
+    useRecordingStore.getState().appendSegmentBlock('second');
+    expect(useRecordingStore.getState().transcription).toBe('first\n\nsecond');
+  });
+});
+
+describe('beginAnotherTake', () => {
+  it('returns to idle and keeps transcription', () => {
+    useRecordingStore.getState().setTranscription('saved');
+    useRecordingStore.getState().beginAnotherTake();
+    const { status, transcription } = useRecordingStore.getState();
+    expect(status).toBe('idle');
+    expect(transcription).toBe('saved');
+    expect(useRecordingStore.getState().audioBlob).toBeNull();
+  });
+});
+
 describe('reset', () => {
   it('clears all state back to initial', () => {
     useRecordingStore.getState().setTranscription('something');
